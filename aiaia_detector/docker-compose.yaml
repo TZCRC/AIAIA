@@ -1,0 +1,13 @@
+version: '3'
+services:
+  aiaia_tf:
+    image: developmentseed/aiaia_tf:v1
+    build:
+      context: .
+      dockerfile: Dockerfile-eval-test-cpu # change to cpu or gpu depending on what you are using for evaluation
+    ports:
+      - "8888:8888"
+    user: ${USERID}
+    volumes:
+        - ./:/ai4earth-wildlife-conservation/
+    working_dir: /ai4earth-wildlife-conservation/util_data
