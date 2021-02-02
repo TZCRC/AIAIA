@@ -1,0 +1,92 @@
+  item: {
+    id: 1,
+    name: "cow"
+  }
+  item: {
+    id: 2,
+    name: "shoats"
+  }
+  item: {
+    id: 3,
+    name: "building"
+  }
+  item: {
+    id: 4,
+    name: "buffalo"
+  }
+  item: {
+    id: 5,
+    name: "wildebeest"
+  }
+  item: {
+    id: 6,
+    name: "elephant"
+  }
+  item: {
+  id: 7,
+    name: "zebra"
+  }
+  item: {
+    id: 8,
+    name: "human"
+  }
+  item: {
+    id: 9,
+    name: "impala"
+  }
+  item: {
+    id: 10,
+    name: "gazelle"
+  }
+  item: {
+    id: 11,
+    name: "giraffe"
+  }
+  item: {
+    id: 12,
+    name: "eland"
+  }
+  item: {
+    id: 13,
+    name: "boma"
+  }
+item: {
+  id: 14,
+    name: "donkey"
+  }
+  item: {
+    id: 15,
+    name: "charcoal sack"
+  }
+  item: {
+    id: 16,
+    name: "hartebeest"
+  }
+  item: {
+    id: 17,
+    name: "Ostrich"
+  }
+  item: {
+    id: 18,
+    name: "charcoal mound"
+  }
+  item: {
+    id: 19,
+    name: "oryx"
+  }
+  item: {
+    id: 20,
+    name: "warthog"
+  }
+  item: {
+    id: 21,
+    name: "topi"
+  }
+  item: {
+    id: 22,
+    name: "kudu"
+  }
+  item: {
+    id: 23,
+    name: "waterbuck"
+  }

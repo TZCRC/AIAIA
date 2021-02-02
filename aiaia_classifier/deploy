@@ -1,0 +1,235 @@
+#!/usr/bin/env bash
+
+#@author development seed, contact nana@developmentseed.org
+export PATH=/usr/local/bin:${PATH}
+
+function usage() {
+    echo
+    echo "Usage:"
+    echo "  deploy [-V|--verbose] --node-pool TYPE"
+    echo
+    echo "Options:"
+    echo "      --node-pool TYPE   Node pool configuration type. Specify either"
+    echo "                         'standard' for the following settings:"
+    echo "                            --machine-type n1-standard-8"
+    echo "                            --accelerator type=nvidia-tesla-k80,count=1"
+    echo "                         or 'highmem' for the following settings:"
+    echo "                            --machine-type n1-highmem-8"
+    echo "                            --accelerator type=nvidia-tesla-p100,count=1"
+    echo "  -V, --verbose          verbose output (default: false)"
+    echo
+}
+
+function die() {
+    local message=${1}
+
+    echo
+    echo ERROR: ${message} >&2
+    usage
+    exit 1
+}
+
+function platform() {
+    echo "$(uname -s | tr '[:upper:]' '[:lower:]')"
+}
+
+# See https://kubernetes.io/docs/tasks/tools/install-kubectl/
+function install_kubectl() {
+    local required_version="$1"
+    local installed_version="$(kubectl version --client --short 2>/dev/null)"
+
+    if [[ ! $installed_version =~ $required_version ]]; then
+        echo "Missing kubectl ${required_version}.  Installing."
+        curl -LO --silent "https://storage.googleapis.com/kubernetes-release/release/v${required_version}/bin/$(platform)/amd64/kubectl"
+        chmod +x ./kubectl
+        sudo mv ./kubectl /usr/local/bin
+    fi
+}
+
+function install_kfctl() {
+    local required_version="$1"
+    local installed_version="$(kfctl version 2>/dev/null)"
+
+    if [[ ! $installed_version =~ $required_version ]]; then
+        local kfctl_release_url="https://github.com/kubeflow/kfctl/releases/tag/${required_version}"
+        local kfctl_download_path="$(curl -s ${kfctl_release_url} | grep -i "href=.*$(platform)" | sed -e "s/.*href=\"\([^\"]*\)\".*/\1/")"
+        local kfctl_tarball="kfctl_${required_version}_$(platform).tar.gz"
+
+        echo "Missing kfctl ${required_version}.  Installing."
+        wget -O ${kfctl_tarball} --quiet "https://github.com${kfctl_download_path}"
+        tar xf ${kfctl_tarball}
+        sudo mv ./kfctl /usr/local/bin/
+        rm ${kfctl_tarball}
+    fi
+}
+
+VERBOSE=""
+VERBOSITY=""
+
+while [[ "$#" -gt 0 ]]; do
+    case ${1:-} in
+    --node-pool)
+        shift
+        case ${1:-} in
+        standard)
+            MACHINE_TYPE="n1-standard-8"
+            ACCELERATOR="type=nvidia-tesla-k80,count=1"
+            ;;
+        highmem)
+            MACHINE_TYPE="n1-highmem-8"
+            ACCELERATOR="type=nvidia-tesla-p100,count=1"
+            ;;
+        *)
+            die "Invalid node-pool value: ${1}"
+            ;;
+        esac
+        shift
+        ;;
+    -V | --verbose)
+        VERBOSE="--verbose"
+        VERBOSITY="--verbosity=info"
+        shift
+        ;;
+    *)
+        die "Invalid command argument: ${1}"
+        ;;
+    esac
+done
+
+test -z ${MACHINE_TYPE:-} && die "Missing required --node-pool option"
+
+set -euo pipefail
+
+type yq >/dev/null 2>&1 || (echo "yq must be installed" && exit 1)
+
+source .env || (echo "Create a .env file as described in README.md" && exit 1)
+
+# Full Kubeflow version, including "v" prefix (e.g., "v1.0.2")
+KUBEFLOW_VERSION="$(<.kubeflow-version)"
+# Only the "MAJOR.MINOR" version (without the ".PATCH" suffix)
+KUBEFLOW_VERSION_NO_PATCH="$(echo ${KUBEFLOW_VERSION} | sed -E "s/([^.]+[.][^.+]).*/\1/")"
+
+# KF_NAME can't be a full directory path, just a directory name.  Use username
+# (first 3 chars) to clearly distinguish cluster owners, and use epoch seconds
+# (last 7 digits [tail -c X takes last X - 1 chars]) for both uniqueness and
+# increasing values for readily determining relative cluster creation time.
+# Note that not all username and epoch seconds characters are used because
+# using them all causes some resource names to exceed the 30-character limit
+# that GCP imposes.
+KF_NAME="kubeflow-app-$(id -un | head -c 3)$(date +%s | tail -c 3)"
+
+KF_APPS_DIR=.kubeflow
+KF_DIR=${KF_APPS_DIR}/${KF_NAME}
+KF_CONFIG=${KF_DIR}/kfctl_gcp_iap.${KUBEFLOW_VERSION}.yaml
+GCP_CONFIG_FILE=${KF_DIR}/gcp_config/cluster-kubeflow.yaml
+IAM_CONFIG_FILE=${KF_DIR}/gcp_config/iam_bindings.yaml
+CONFIG_URI="https://raw.githubusercontent.com/kubeflow/manifests/${KUBEFLOW_VERSION_NO_PATCH}-branch/kfdef/kfctl_gcp_iap.${KUBEFLOW_VERSION}.yaml"
+
+# Obtain the default Kubernetes cluster version from GCP to make sure we install
+# and use the correct version of kubectl, and also set the correct value for
+# cluster-version in our GCP_CONFIG_FILE.
+K8S_VERSION_GKE="$(gcloud container get-server-config --zone ${ZONE} --format="value(defaultClusterVersion)" 2>/dev/null)"
+K8S_VERSION="$(echo ${K8S_VERSION_GKE} | sed -E "s/([[:digit:]]+[.][[:digit:]]+[.][[:digit:]]+).*/\1/")"
+K8S_VERSION_NO_PATCH="$(echo ${K8S_VERSION} | sed -E "s/([^.]+[.][^.]+).*/\1/")"
+
+install_kubectl ${K8S_VERSION}
+install_kfctl ${KUBEFLOW_VERSION}
+
+mkdir -p "${KF_DIR}"
+gcloud config set compute/zone ${ZONE}
+gcloud config set project ${PROJECT}
+
+echo CLIENT_ID=${CLIENT_ID}
+echo "Building app ${KF_NAME}"
+
+(
+    set -x
+    cd "${KF_DIR}" && CLIENT_ID=${CLIENT_ID} kfctl build --file "${CONFIG_URI}" ${VERBOSE}
+)
+
+# Make some changes to your GCP config if necessary (here, turning down
+# master resources and turning off GPUs) -- we will create our own GPU
+# compute node.
+echo "Updating...   ${GCP_CONFIG_FILE}"
+
+########### yq version 3
+# yq w -i "${GCP_CONFIG_FILE}" resources[0].properties.cpu-pool-enable-autoscaling false
+# yq w -i "${GCP_CONFIG_FILE}" resources[0].properties.gpu-pool-enable-autoscaling false
+# yq w -i "${GCP_CONFIG_FILE}" resources[0].properties.cpu-pool-machine-type n1-standard-4
+# yq w -i "${GCP_CONFIG_FILE}" resources[0].properties.autoprovisioning-config.enabled false
+# yq w -i "${GCP_CONFIG_FILE}" resources[0].properties.cluster-version ${K8S_VERSION_NO_PATCH}
+# # Update the Google service account to have access to cloud storage
+# yq w -i "${IAM_CONFIG_FILE}" bindings[2].roles[3] roles/storage.admin
+
+########### yq version 4
+yq e -i '.resources[0].properties.cpu-pool-enable-autoscaling=false' "${GCP_CONFIG_FILE}"
+yq e -i '.resources[0].properties.gpu-pool-enable-autoscaling=false' "${GCP_CONFIG_FILE}"
+yq e -i '.resources[0].properties.cpu-pool-machine-type="n1-standard-4"' "${GCP_CONFIG_FILE}"
+yq e -i '.resources[0].properties.autoprovisioning-config.enabled=false' "${GCP_CONFIG_FILE}"
+yq e -i ".resources[0].properties.cluster-version=${K8S_VERSION_NO_PATCH}" "${GCP_CONFIG_FILE}"
+# Update the Google service account to have access to cloud storage
+yq e -i '.bindings[2].roles[3]="roles/storage.admin"' "${IAM_CONFIG_FILE}"
+
+echo
+echo "Deploying cluster ${KF_NAME}: https://console.cloud.google.com/kubernetes/clusters/details/${ZONE}/${KF_NAME}?project=${PROJECT}. This will take about 15 minutes."
+echo
+
+(
+    set -x
+
+    # Deploy the Kubeflow app to GCP
+    echo "${KF_CONFIG}"
+    kfctl apply --file "${KF_CONFIG}" ${VERBOSE}
+
+    # Add permissions for node pools
+
+    # Note: GPUs are currently only supported with general-purpose N1 machine
+    # types. The default kubeflow node pool (with 2 cpus) uses the vm service
+    # account instead of the user account, so adding permissions to both user
+    # and vm account.
+
+    gcloud ${VERBOSITY} projects add-iam-policy-binding ${PROJECT} \
+        --member serviceAccount:${KF_NAME}-user@${PROJECT}.iam.gserviceaccount.com \
+        --role roles/storage.objectAdmin \
+        --role roles/logging.logWriter \
+        --role roles/monitoring.editor
+    gcloud ${VERBOSITY} projects add-iam-policy-binding ${PROJECT} \
+        --member serviceAccount:${KF_NAME}-vm@${PROJECT}.iam.gserviceaccount.com \
+        --role roles/storage.objectAdmin \
+        --role roles/viewer
+
+    # Create node pool
+    gcloud ${VERBOSITY} container node-pools create ${KF_NAME}-ml-pool \
+        --cluster ${KF_NAME} \
+        --zone ${ZONE} \
+        --machine-type ${MACHINE_TYPE} \
+        --scopes cloud-platform --verbosity error \
+        --enable-autoscaling \
+        --num-nodes 3 \
+        --max-nodes 3 \
+        --min-nodes 0 \
+        --enable-autoupgrade \
+        --accelerator ${ACCELERATOR} \
+        --service-account ${KF_NAME}-user@${PROJECT}.iam.gserviceaccount.com
+
+    # Connect kubectl to the cluster
+    gcloud container clusters get-credentials ${KF_NAME} \
+        --zone ${ZONE} \
+        --project ${PROJECT}
+)
+
+echo
+echo "Run the following commands to use these environment variables in"
+echo "subsequent commands related to your new deployment:"
+echo
+echo "  export KF_NAME=\"${KF_NAME}\""
+echo "  export KF_DIR=\"${KF_DIR}\""
+echo "  export KF_CONFIG=\"${KF_CONFIG}\""
+echo
+echo "To verify the cluster's resources, run the following:"
+echo
+echo "  kubectl -n kubeflow get all"
+echo
+echo "To delete the cluster and all related resources, run the following:"
+echo
+echo "  ./clean ${KF_DIR}"

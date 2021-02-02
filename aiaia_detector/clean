@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+
+function usage() {
+    echo
+    echo "Cleans up the cluster resources for a Kubeflow application.  Since"
+    echo "this is an irreversible, destructive operation, it defaults to"
+    echo "performing a dry run, only listing the commands that would run when"
+    echo "the --no-dry-run option is explicitly supplied."
+    echo
+    echo "For additional safety, even when the --no-dry-run option is supplied,"
+    echo "you will be prompted to confirm your decision."
+    echo
+    echo "Usage:"
+    echo "  ${0} [options] APP"
+    echo
+    echo "Options:"
+    echo "      --no-dry-run     Definitely clean (override dry run default)"
+    echo "      --skip-cluster   Skip deleting cluster, but not other resources"
+    echo "                       (intended for deleting dangling resources for a"
+    echo "                       cluster that was previously deleted)"
+    echo "  -V, --verbose        verbose output (default: false)"
+    echo
+    echo "Positional arguments:"
+    echo "  APP  Kubeflow app name or app directory containing the GCP IAP"
+    echo "       config file for the application to clean.  When specifying a"
+    echo "       name, you will be required to also specify the --skip-cluster"
+    echo "       option."
+}
+
+function die() {
+    local message=${1}
+
+    echo
+    echo ERROR: ${message} >&2
+    usage
+    exit 1
+}
+
+function run() {
+    if [[ ${DRY_RUN:-true} = true ]]; then
+        echo "  * $@"
+    else
+        echo "+$@"
+        eval "$@"
+    fi
+}
+
+DRY_RUN=true
+SKIP_CLUSTER=false
+VERBOSE=""
+VERBOSITY=""
+KF_DIR=""
+
+while [[ "$#" -gt 0 ]]; do
+    case ${1:-} in
+    --no-dry-run)
+        DRY_RUN=false
+        shift
+        ;;
+    --skip-cluster)
+        SKIP_CLUSTER=true
+        shift
+        ;;
+    -V | --verbose)
+        VERBOSE="--verbose"
+        VERBOSITY="--verbosity=info"
+        shift
+        ;;
+    *)
+        if [[ -z ${KF_DIR} ]]; then
+            KF_DIR=${1}
+            shift
+        else
+            die "Invalid command argument: ${1}"
+        fi
+        ;;
+    esac
+done
+
+[[ -z ${KF_DIR} ]] && die "Missing required APP argument"
+
+set -euo pipefail
+
+KF_NAME=$(basename "${KF_DIR}")
+KUBEFLOW_VERSION="$(<.kubeflow-version)"
+KF_CONFIG=${KF_DIR}/kfctl_gcp_iap.${KUBEFLOW_VERSION}.yaml
+
+if [[ ! -f ${KF_CONFIG} && ${SKIP_CLUSTER} = false ]]; then
+    echo
+    echo "No such configuration file: ${KF_CONFIG}"
+    echo "Use --skip-cluster to delete resources related to a deleted cluster"
+    exit 0
+fi
+
+if ${DRY_RUN:-true}; then
+    echo
+    echo "This is a dry run.  No resources will be deleted."
+    echo "Using the --no-dry-run option would run the following:"
+    echo
+else
+    echo
+    echo "WARNING! This is NOT a DRY RUN!"
+    echo
+    echo "ARE YOU SURE you want to destroy the following cluster?"
+    echo
+    echo "  > ${KF_NAME}"
+    echo
+    read -p "Only 'yes' will be accepted for approval: "
+    echo
+
+    if [[ ! $REPLY =~ ^[yY][eE][sS]$ ]]; then
+        echo "Operation aborted."
+        exit 0
+    fi
+fi
+
+# Delete cluster
+if ! ${SKIP_CLUSTER}; then
+    CLUSTER="$(gcloud container clusters list --filter="name~'^${KF_NAME}'" --format="value(name)")"
+    [[ -z "${CLUSTER}" ]] && echo "No such cluster: ${KF_NAME}"
+    [[ -n "${CLUSTER}" ]] && run kfctl delete --delete_storage --file ${KF_CONFIG} ${VERBOSE}
+fi
+
+# Delete cluster's disks
+DISKS="$(gcloud compute disks list --filter="name~'^${KF_NAME}'" --format="value(name)")"
+[[ -z "${DISKS}" ]] && echo "No disks to delete"
+[[ -n "${DISKS}" ]] && run gcloud compute disks delete --quiet ${DISKS} ${VERBOSITY}
+
+# TODO determine which backend services are associated with the cluster
+# gcloud compute backend-services list
+
+# Delete cluster's SSL certificates
+CERTS="$(gcloud compute ssl-certificates list --filter="managed.domains~'^${KF_NAME}'" --format="value(name)")"
+[[ -z "${CERTS}" ]] && echo "No SSL certificates to delete"
+[[ -n "${CERTS}" ]] && run gcloud compute ssl-certificates delete --quiet ${CERTS} ${VERBOSITY}
+
+# Delete cluster's static IPs
+IPS="$(gcloud compute addresses list --filter="name~'^${KF_NAME}'" --format="value(name)")"
+[[ -z "${IPS}" ]] && echo "No IP addresses to delete"
+[[ -n "${IPS}" ]] && run gcloud compute addresses delete --global --quiet ${IPS} ${VERBOSITY}
+
+# Delete app directory and config created by deploy script
+! ${SKIP_CLUSTER} && [[ -d ${KF_DIR} ]] && run rm -rf ${KF_DIR}

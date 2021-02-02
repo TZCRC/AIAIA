@@ -1,0 +1,9 @@
+__pycache__/
+aiaia_detector_tf1/aiaia_od/*
+.kubeflow/
+
+aiaia_od/
+image_sanitycheck/
+.env
+.pre-commit-config.yaml
+SL25_tfrecord.zip

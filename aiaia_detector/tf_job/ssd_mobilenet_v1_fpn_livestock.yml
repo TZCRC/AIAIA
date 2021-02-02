@@ -1,0 +1,36 @@
+apiVersion: "kubeflow.org/v1"
+kind: "TFJob"
+metadata:
+  name: "ssd-mobilenet-v2-fpn-livestock"
+  namespace: "kubeflow"
+spec:
+  tfReplicaSpecs:
+    Worker:
+      replicas: 1
+      restartPolicy: OnFailure
+      template:
+        spec:
+          serviceAccountName: kf-user
+          containers:
+          - name: tensorflow
+            image: gcr.io/bp-padang/aiaia:v1-tf1.15-gpu
+            command:
+              - "python"
+              - "/tensorflow/aiaia_detector/model_main.py"
+              - "--model_dir=gs://aiaia_od/model_outputs_tf1/ssd_mobilenet_v1_fpn_livestock"
+              - "--pipeline_config_path=gs://aiaia_od/model_configs_tf1/configs/ssd_mobilenet_v1_fpn_livestock.config"
+              - "--num_train_steps=50000"
+              - "--sample_1_of_n_eval_examples=1"
+              - "--input_type=encoded_image_string_tensor"
+              - "--output_directory=gs://aiaia_od/export_outputs_tf1/ssd_mobilenet_v2_fpn_livestock_5k_tfs"
+            resources:
+              limits:
+                nvidia.com/gpu: 1
+            restartPolicy: Never
+            tolerations:
+              - key: "nvidia.com/gpu"
+                operator: "Equal"
+                value: "present"
+                effect: "NoSchedule"
+            nodeSelector:
+              cloud.google.com/gke-accelerator: nvidia-tesla-k80

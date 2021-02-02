@@ -1,0 +1,68 @@
+item: {
+	id: 1,
+	name: "boma" 
+}
+item: {
+	id: 2,
+	name: "building" 
+}
+item: {
+	id: 3,
+	name: "charcoal mound" 
+}
+item: {
+	id: 4,
+	name: "charcoal sack" 
+}
+item: {
+	id: 5,
+	name: "human" 
+}
+item: {
+	id: 6,
+	name: "cow" 
+}
+item: {
+	id: 7,
+	name: "donkey" 
+}
+item: {
+	id: 8,
+	name: "shoats" 
+}
+item: {
+	id: 9,
+	name: "buffalo" 
+}
+item: {
+	id: 10,
+	name: "dark_coloured_large" 
+}
+item: {
+	id: 11,
+	name: "elephant" 
+}
+item: {
+	id: 12,
+	name: "giraffe" 
+}
+item: {
+	id: 13,
+	name: "hippopotamus" 
+}
+item: {
+	id: 14,
+	name: "light_coloured_large" 
+}
+item: {
+	id: 15,
+	name: "smaller_ungulates" 
+}
+item: {
+	id: 16,
+	name: "warthog" 
+}
+item: {
+	id: 17,
+	name: "zebra" 
+}
