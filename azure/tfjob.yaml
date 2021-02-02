@@ -1,0 +1,34 @@
+apiVersion: "kubeflow.org/v1"
+kind: "TFJob"
+metadata:
+  name: "faster-rcnn-resnet101-serengeti-wildlife"
+  namespace: "kubeflow"
+spec:
+  tfReplicaSpecs:
+    Worker:
+      replicas: 1
+      restartPolicy: OnFailure
+      template:
+        spec:
+          serviceAccountName: kf-user
+          containers:
+          - name: tensorflow
+            image: geoyiacr.azurecr.io//aiaia:v1.1-tf1.15-gpu
+            command:
+              - "python"
+              - "/tensorflow/aiaia_detector/model_main.py"
+              - "--model_dir=${blob_path}/model_outputs_tf1/rcnn_resnet101_serengeti_wildlife"
+              - "--pipeline_config_path=${blob_path}/model_configs_tf1/configs/rcnn_resnet101_serengeti_wildlife.config"
+              - "--num_train_steps=50000"
+              - "--sample_1_of_n_eval_examples=1"
+              - "--input_type=encoded_image_string_tensor"
+              - "--output_directory=${blob_path}//export_outputs_tf1/rcnn_resnet101_serengeti_wildlife_v3_tfs_v2"
+            resources:
+              limits:
+                nvidia.com/gpu: 1
+            restartPolicy: Never
+            tolerations:
+              - key: "nvidia.com/gpu"
+                operator: "Equal"
+                value: "present"
+                effect: "NoSchedule"
