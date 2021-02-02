@@ -1,0 +1,50 @@
+default:
+  stage: dev
+  stackName: aiaia-inf
+  stackNoDash: aiaia
+  projectTag: aiaia
+  capabilities:
+     - CAPABILITY_NAMED_IAM
+  buckets:
+    internal: aiaia-inference # existing s3 bucket to store deployment artifacts
+
+  lambdas:
+    DownloadAndPredict:
+      handler: download_and_predict.handler.handler
+      timeout: 240
+      memory: 1024
+      source: lambda/package.zip
+      runtime: python3.7
+      queueTrigger: true
+      concurrent: 2
+      envs:
+        BUCKET: aisurvey
+        AISURVEY_AWS_ACCESS_KEY_ID: '{{AISURVEY_AWS_ACCESS_KEY_ID}}'
+        AISURVEY_AWS_SECRET_ACCESS_KEY: '{{AISURVEY_AWS_SECRET_ACCESS_KEY}}'
+
+  rds:
+    username: '{{RDS_USERNAME}}'
+    password: '{{RDS_PASSWORD}}'
+    storage: 20
+    instanceType: 'db.t2.medium'
+
+  vpc: vpc-dfe524ba # existing VPC containing the two subnets below
+  subnets:
+    - subnet-44f69821
+    - subnet-7945cb75
+
+  ecs:
+    availabilityZone: us-east-1b
+    maxInstances: 1
+    desiredInstances: 1
+    keyPairName: NaNa_Yi_AMI
+    instanceType: g4dn.4xlarge # replace with a GPU instance for faster predictions (and higher costs)
+    image: devseeddeploy/aiaia_fastrcnn:v1.2_human_activities-gpu # docker image containing your inference model built with TF Serving
+    memory: 40000 # replace with the memory required by your TF Serving docker image
+    # edit the memory
+
+  sqs:
+    visibilityTimeout: 300
+    maxReceiveCount: 5
+
+  predictionPath: '/v1/models/human_activities' # path to your model on the TF Serving docker image; don't include :predict

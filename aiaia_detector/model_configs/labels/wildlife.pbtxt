@@ -1,0 +1,36 @@
+	item: {
+		id: 1,
+		name: "buffalo"
+	}
+	item: {
+		id: 2,
+		name: "dark_coloured_large"
+	}
+	item: {
+		id: 3,
+		name: "elephant"
+	}
+	item: {
+		id: 4,
+		name: "giraffe"
+	}
+	item: {
+		id: 5,
+		name: "hippopotamus"
+	}
+	item: {
+		id: 6,
+		name: "light_coloured_large"
+	}
+	item: {
+		id: 7,
+		name: "smaller_ungulates"
+	}
+	item: {
+		id: 8,
+		name: "warthog"
+	}
+	item: {
+		id: 9,
+		name: "zebra"
+	}

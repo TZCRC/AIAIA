@@ -1,0 +1,10 @@
+ssd_mobilenet_v2_320x320_coco17_tpu-8/
+SL25_tfrecord/
+model_configs/
+model_outputs/
+models/
+aiai_detector/data/*
+aiaia_detector/aiaia_od/*
+image_sanitycheck/
+ssd_mobilenet_v1_coco_2018_01_28/
+tf_serving/

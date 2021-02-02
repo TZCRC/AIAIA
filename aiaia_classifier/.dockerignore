@@ -1,0 +1,3 @@
+tests/
+classification_training_tfrecords.csv
+tf_job/

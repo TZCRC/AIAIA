@@ -1,0 +1,31 @@
+category,label,label_id,master_label_id,group,group_id,master_group_id,status,RR17,RR19,SL25,TA25,Total
+human_activities,boma,1,1,boma,1,1,TRUE,109,358,98,193,758
+human_activities,building,2,2,building,2,2,TRUE,821,"1,393",985,"1,395","4,594"
+human_activities,charcoal mound,3,3,charcoal mound,3,3,TRUE,0,1,1,15,17
+human_activities,charcoal sack,4,4,charcoal sack,4,4,TRUE,0,14,16,63,93
+human_activities,human,5,5,human,5,5,TRUE,468,"1,021",562,454,"2,505"
+livestock,cow,1,6,cow,1,6,TRUE,"7,559","4,031",483,"4,926","16,999"
+livestock,donkey,2,7,donkey,2,7,TRUE,37,122,0,81,240
+livestock,shoats,3,8,shoats,3,8,TRUE,"3,204","2,925",235,"1,904","8,268"
+wildlife,buffalo,1,9,buffalo,1,9,TRUE,"1,692",241,998,961,"3,892"
+wildlife,wildebeest,3,11,dark_coloured_large,2,10,TRUE,0,0,151,794,945
+wildlife,topi,4,12,dark_coloured_large,2,10,TRUE,50,14,20,4,88
+wildlife,waterbuck,5,13,dark_coloured_large,2,10,TRUE,1,11,7,4,23
+wildlife,sable,6,14,dark_coloured_large,2,10,TRUE,1,0,4,0,5
+wildlife,elephant,7,15,elephant,3,11,TRUE,532,643,298,599,"2,072"
+wildlife,giraffe,9,17,giraffe,4,12,TRUE,96,10,20,183,309
+wildlife,hippopotamus,10,18,hippopotamus,5,13,TRUE,1,3,56,0,60
+wildlife,crane,2,10,large_bird,-,-,FALSE,1,14,0,0,15
+wildlife,ostrich,17,25,large_bird,-,-,FALSE,48,17,0,16,81
+wildlife,stork,20,28,large_bird,-,-,FALSE,2,0,0,0,2
+wildlife,eland,11,19,light_coloured_large,6,14,TRUE,44,73,21,139,277
+wildlife,hartebeest,12,20,light_coloured_large,6,14,TRUE,62,40,59,20,181
+wildlife,kudu,13,21,light_coloured_large,6,14,TRUE,77,50,0,4,131
+wildlife,roan,14,22,light_coloured_large,6,14,TRUE,10,2,15,0,27
+wildlife,oryx,15,23,light_coloured_large,6,14,TRUE,0,0,0,11,11
+wildlife,lion,16,24,lion,-,-,FALSE,6,0,0,0,6
+wildlife,gazelle,8,16,smaller_ungulates,7,15,TRUE,6,1,0,247,254
+wildlife,impala,18,26,smaller_ungulates,7,15,TRUE,623,328,269,403,"1,623"
+wildlife,antelope,19,27,smaller_ungulates,7,15,TRUE,172,106,190,0,468
+wildlife,warthog,21,29,warthog,8,16,TRUE,14,9,16,5,44
+wildlife,zebra,22,30,zebra,9,17,TRUE,353,185,162,571,"1,271"
