@@ -38,11 +38,12 @@ The new system is for cameras on the wing struts which take constant images alon
 
   <img width="903" alt="PAS-aerial-survey" src="https://user-images.githubusercontent.com/14057932/106537752-f6b18d00-64c8-11eb-99f7-f42cbc457264.png">
 
-## Training Data Generation
+## Training Data Generation with the aiaia_tf container
+The aiaia_tf container has multiple uses: generating training data, running evaluation on model outputs, and serving as an interactive jupyter notebook server or testing server with pytest.
+
 -  Build and access the container
 
 ```sh
-cd AIAIA/util_data
 docker-compose build
 USERID=$(id -u) docker-compose run aiaia_tf bash
 ```
