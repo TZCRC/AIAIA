@@ -44,11 +44,12 @@ def json2xml(list_predictions, images_path):
     version.text = str("1.1")
     # Sort list of predition by image name
     list_predictions = sorted(
-        list_predictions, key=lambda p: op.join(images_path, p["fname"])
+        list_predictions,
+        key=lambda p: op.join(images_path, p["sourcefile"], p["fname"]),
     )
 
     for index, preds in enumerate(list_predictions):
-        image_path = op.join(images_path, preds["fname"])
+        image_path = op.join(images_path, preds["sourcefile"], preds["fname"])
         image = ET.SubElement(root, "image")
         image.attrib["id"] = str(index)
         image.attrib["name"] = image_path
@@ -145,6 +146,20 @@ def fix_bbox(preds):
     type=str,
     default="data/wildlife_results.xml",
 )
+@click.option(
+    "--output_list_images",
+    help="Output of list of images which has detection",
+    required=True,
+    type=str,
+    default="data/wildlife_results.txt",
+)
+@click.option(
+    "--s3_path",
+    help="Path of images in s3",
+    required=True,
+    type=str,
+    default="s3://aisurvey/",
+)
 def main(
     csv_location_file,
     json_prediction_file,
@@ -152,6 +167,8 @@ def main(
     threshold,
     images_path,
     output_xml_file,
+    output_list_images,
+    s3_path,
 ):
 
     df = pd.read_csv(csv_location_file)
@@ -170,7 +187,7 @@ def main(
         original_fname = fname.rsplit("_", 2)[0] + ".jpg"
         # Take only the object that have clases,
         if len(pred["classes"]) > 0:
-            if dict_predictions.get(original_fname, "*") == "*":
+            if original_fname not in dict_predictions:
                 dict_predictions[original_fname] = {"predictions": [pred]}
             else:
                 dict_predictions[original_fname]["predictions"].append(pred)
@@ -180,6 +197,7 @@ def main(
         df_ = df.loc[df["fname"] == key]
         if df_.shape[0] >= 1:
             df_row = df_.iloc[0]
+
             # Get data from matched row
             preds["fname"] = df_row["fname"]
             preds["imagesize"] = list(map(int, df_row["imagesize"].split("x")))
@@ -193,6 +211,20 @@ def main(
     with open(output_xml_file, "w") as f:
         xml_root = json2xml(matched_predictions, images_path)
         f.write(prettify(xml_root))
+
+    # Save list of images which has predictions
+    with open(output_list_images, "w") as f:
+        images = [
+            "aws s3 cp {}/{}/{} {}/{}/".format(
+                s3_path,
+                pred["sourcefile"],
+                pred["fname"],
+                images_path,
+                pred["sourcefile"],
+            )
+            for pred in matched_predictions
+        ]
+        f.write("\n".join(images))
 
 
 if __name__ == "__main__":

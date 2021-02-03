@@ -114,8 +114,6 @@ def prettify(elem):
     Returns:
         reparsed xml
     """
-    print(type(elem))
-
     rough_string = ElementTree.tostring(elem, "utf-8")
     reparsed = minidom.parseString(rough_string)
     return reparsed.toprettyxml(indent="  ")

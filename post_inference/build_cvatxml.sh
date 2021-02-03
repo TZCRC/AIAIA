@@ -7,7 +7,8 @@ mkdir -p data/
 ## Get location data and merge in one file
 ##########################################################################################
 ## location
-aws s3 sync s3://ds-data-projects/ai4earth-wildlife-conservation/csv/ data/
+
+# aws s3 sync s3://ds-data-projects/ai4earth-wildlife-conservation/csv/ data/
 
 ##########################################################################################
 ## Get prediction data
@@ -29,10 +30,42 @@ aws s3 sync s3://ds-data-projects/ai4earth-wildlife-conservation/csv/ data/
 # # ## inferece to cvat xml format
 # # ##########################################################################################
 
-# mxj2019
+# # mxj2019
 python3 prediction2cvatxml.py \
     --csv_location_file=data/mxj2019.csv \
     --json_prediction_file=data/wildlife_inference_results.json \
     --threshold=0.85 \
-    --images_path=data/mxj2019 \
-    --output_xml_file=data/mxj2019.xml
+    --images_path=data \
+    --output_xml_file=data/mxj2019.xml \
+    --s3_path=s3://aisurvey \
+    --output_list_images=data/mxj2019_images.txt
+
+# sl25
+python3 prediction2cvatxml.py \
+    --csv_location_file=data/sl25.csv \
+    --json_prediction_file=data/inference_results.json \
+    --threshold=0.85 \
+    --images_path=data \
+    --output_xml_file=data/sl25.xml \
+    --s3_path=s3://aisurvey \
+    --output_list_images=data/sl25_images.txt \
+
+# rr19
+python3 prediction2cvatxml.py \
+    --csv_location_file=data/rr19.csv \
+    --json_prediction_file=data/inference_results.json \
+    --threshold=0.85 \
+    --images_path=data \
+    --output_xml_file=data/rr19.xml \
+    --s3_path=s3://aisurvey \
+    --output_list_images=data/rr19_images.txt \
+
+# cormon2019/
+python3 prediction2cvatxml.py \
+    --csv_location_file=data/cormon2019.csv \
+    --json_prediction_file=data/inference_results.json \
+    --threshold=0.85 \
+    --images_path=data \
+    --output_xml_file=data/cormon2019.xml \
+    --s3_path=s3://aisurvey \
+    --output_list_images=data/cormon2019_images.txt \
