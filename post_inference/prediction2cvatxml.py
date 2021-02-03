@@ -21,43 +21,34 @@ import xml.etree.ElementTree as ET
 from xml.etree import ElementTree
 from xml.dom import minidom
 
-from post_util import df_to_geojson, filter_predictions, prettify
+from post_util import (
+    df_to_geojson,
+    filter_predictions,
+    prettify,
+    add_classes_name,
+)
 
 
-wildlife_classes = {
-    1: "buffalo",
-    2: "dark_coloured_large",
-    3: "elephant",
-    4: "giraffe",
-    5: "hippopotamus",
-    6: "light_coloured_large",
-    7: "smaller_ungulates",
-    8: "warthog",
-    9: "zebra",
-}
+def json2xml(list_predictions, images_path):
+    """Convert json to xml
 
-livestock_classes = {1: "cow", 2: "donkey", 3: "shoats"}
+    Args:
+        list_predictions (List[Dict]): list of predictions
+        images_path (Str): Iimages path oiin CVAT
 
-human_activities_classes = {
-    1: "boma",
-    2: "building",
-    3: "charcoal_mound",
-    4: "charcoal_sack",
-    5: "human",
-}
-
-
-def json2xml(list_predictions):
+    Returns:
+        xml root
+    """
     root = ET.Element("annotations")
     version = ET.SubElement(root, "version")
     version.text = str("1.1")
     # Sort list of predition by image name
     list_predictions = sorted(
-        list_predictions, key=lambda p: op.join(p["sourcefile"], p["fname"])
+        list_predictions, key=lambda p: op.join(images_path, p["fname"])
     )
 
     for index, preds in enumerate(list_predictions):
-        image_path = op.join(preds["sourcefile"], preds["fname"])
+        image_path = op.join(images_path, preds["fname"])
         image = ET.SubElement(root, "image")
         image.attrib["id"] = str(index)
         image.attrib["name"] = image_path
@@ -76,11 +67,19 @@ def json2xml(list_predictions):
                 box.attrib["ybr"] = str(ybr)
                 attribute = ET.SubElement(box, "attribute")
                 attribute.attrib["name"] = str("wildlife")
-                attribute.text = str(class_name)
+                attribute.text = str(pred["classes_name"][idx])
     return root
 
 
 def fix_bbox(preds):
+    """Function to scale the prediction bbox to the original images
+
+    Args:
+        preds (Dict): List of prediction for a original image
+
+    Returns:
+        preds (Dict): Predictions with the box fixed
+    """
     # These values  need to be change for other projects with different size of image
     chip_width = 400
     chip_height = 400
@@ -126,59 +125,51 @@ def fix_bbox(preds):
     default="wildlife",
 )
 @click.option(
-    "--output_xml_file",
-    help="Output xml file",
-    required=True,
-    type=str,
-    default="data/wildlife_results.xml",
-)
-@click.option(
     "--threshold",
     help="threshold for filter data",
     required=True,
     type=float,
     default=0.85,
 )
+@click.option(
+    "--images_path",
+    help="Images that where is stored in CVAT",
+    required=True,
+    type=str,
+    default="data",
+)
+@click.option(
+    "--output_xml_file",
+    help="Output xml file",
+    required=True,
+    type=str,
+    default="data/wildlife_results.xml",
+)
 def main(
     csv_location_file,
     json_prediction_file,
     category,
     threshold,
+    images_path,
     output_xml_file,
 ):
 
-    ###################################################################
-    # Select category
-    ###################################################################
-
-    classes_dict = {}
-    if category == "wildlife":
-        classes_dict = wildlife_classes
-    elif category == "livestock":
-        classes_dict = livestock_classes
-    elif category == "human_activities":
-        classes_dict = human_activities_classes
-
-    ###################################################################
-    # Read CSV
-    ###################################################################
-
     df = pd.read_csv(csv_location_file)
 
-    # ###################################################################
     # # Read predictions json file
-    # ###################################################################
     with open(json_prediction_file) as f:
         predictions = json.load(f)
 
     # Filter predictions
     predictions = filter_predictions(predictions, threshold)
+    predictions = add_classes_name(predictions)
     dict_predictions = {}
     for pred in predictions:
+        # Get the original name
         fname = op.basename(pred["image_id"])
         original_fname = fname.rsplit("_", 2)[0] + ".jpg"
+        # Take only the object that have clases,
         if len(pred["classes"]) > 0:
-
             if dict_predictions.get(original_fname, "*") == "*":
                 dict_predictions[original_fname] = {"predictions": [pred]}
             else:
@@ -189,7 +180,7 @@ def main(
         df_ = df.loc[df["fname"] == key]
         if df_.shape[0] >= 1:
             df_row = df_.iloc[0]
-            # Recolect all the data from csv
+            # Get data from matched row
             preds["fname"] = df_row["fname"]
             preds["imagesize"] = list(map(int, df_row["imagesize"].split("x")))
             preds["sourcefile"] = op.dirname(df_row["sourcefile"])
@@ -198,11 +189,10 @@ def main(
             preds = fix_bbox(preds)
             matched_predictions.append(preds)
 
-    # Save on xml
-    xml_root = json2xml(matched_predictions)
-    f = open(output_xml_file, "w")
-    f.write(prettify(xml_root))
-    f.close()
+    # Save xml file
+    with open(output_xml_file, "w") as f:
+        xml_root = json2xml(matched_predictions, images_path)
+        f.write(prettify(xml_root))
 
 
 if __name__ == "__main__":
