@@ -7,8 +7,8 @@ full_image_name_cpu=gcr.io/${PROJECT}/aiaia:${VERSION}-tf1.15-cpu
 full_image_name_gpu=gcr.io/${PROJECT}/aiaia:${VERSION}-tf1.15-gpu
 
 cd "$(dirname "$0")"
-docker build . -f Dockerfile-cpu -t $full_image_name_cpu &
-docker build . -f Dockerfile-gpu -t $full_image_name_gpu
+docker build . -f Dockerfile-deploy-cpu -t $full_image_name_cpu &
+docker build . -f Dockerfile-deploy-gpu -t $full_image_name_gpu
 
 echo "pushing.. $full_image_name_cpu"
 docker push $full_image_name_cpu

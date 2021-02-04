@@ -128,3 +128,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 data/
+aiaia_detector/aiaia_detector/tests/frozen_inference_graph.pb

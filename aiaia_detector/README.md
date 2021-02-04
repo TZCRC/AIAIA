@@ -94,8 +94,8 @@ appropriate value (e.g., `v2`):
 ```bash
 export VERSION=v1
 export PROJECT=bp-padang
-docker build . -f Dockerfile-gpu -t gcr.io/${PROJECT}/aiaia:${VERSION}-tf1.15-gpu
-docker build . -f Dockerfile-cpu -t gcr.io/${PROJECT}/aiaia:${VERSION}-tf1.15-cpu
+docker build . -f Dockerfile-deploy-gpu -t gcr.io/${PROJECT}/aiaia:${VERSION}-tf1.15-gpu
+docker build . -f Dockerfile-deploy-cpu -t gcr.io/${PROJECT}/aiaia:${VERSION}-tf1.15-cpu
 
 ```
 

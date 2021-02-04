@@ -1,0 +1,58 @@
+FROM tensorflow/tensorflow:2.2.0-gpu
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Install apt dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    gpg-agent \
+    python3-cairocffi \
+    protobuf-compiler \
+    python3-pil \
+    python3-lxml \
+    python3-tk \
+    python3-dev \
+    wget \
+    vim \
+    nano \
+    unzip
+
+# Downloading the TensorFlow Models
+RUN git clone --progress https://github.com/tensorflow/models.git /tensorflow/models
+# Froze the codebase before Oct 28, 2020, https://github.com/tensorflow/models/tree/24e41ffe97c601e52b35682170e7abceed0eae1a
+RUN cd /tensorflow/models && git checkout 24e41ffe97c601e52b35682170e7abceed0eae1a
+
+# Install remaining python dependencies
+RUN pip install \
+    Cython \
+    lxml
+
+# Protobuf Installation
+ENV workdir /usr/src/app
+RUN wget https://github.com/google/protobuf/releases/download/v3.2.0/protoc-3.2.0-linux-x86_64.zip -P $workdir
+RUN unzip $workdir/protoc-3.2.0-linux-x86_64.zip -d $workdir/protoc3
+RUN mv -f $workdir/protoc3/bin/* /usr/local/bin/
+RUN mv -f $workdir/protoc3/include/* /usr/local/include/
+RUN ln -s -f /usr/local/bin/protoc /usr/bin/protoc
+
+# Protobuf Compilation
+RUN cd /tensorflow/models/research/ && \
+    protoc object_detection/protos/*.proto --python_out=.
+
+# Install the Object Detection API
+WORKDIR /tensorflow/models/research/
+RUN cp object_detection/packages/tf2/setup.py ./
+ENV PATH="/tensorflow/.local/bin:${PATH}"
+RUN python -m pip install -U pip
+RUN python -m pip install .
+RUN python -m pip install tensorflow==2.2.0
+ENV TF_CPP_MIN_LOG_LEVEL 3
+
+# Test Object Detection API Installation
+RUN python object_detection/builders/model_builder_tf2_test.py
+
+COPY requirements.txt .
+RUN pip install --upgrade --ignore-installed --no-cache-dir -r requirements-data-eval.txt
+
+WORKDIR /mnt/data
+CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--notebook-dir=/ai4earth-wildlife-conservation/" ]

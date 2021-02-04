@@ -10,7 +10,8 @@ setuptools>=41.0.0
 tf-slim==1.1.0
 protobuf==3.7
 pycocotools==2.0.2
-requests==2.25.0
-tensorflow_serving-api==2.3.0
-click==7.1.2
-pandas==1.1.5
+# TODO confirm these uneeded, unused in dockerfile-deploy-gpu
+# requests==2.25.0
+# tensorflow_serving-api==2.3.0
+# click==7.1.2
+# pandas==1.1.5
