@@ -14,11 +14,9 @@ az storage account create \
 
 # create a container
 # at the portal-azure 
-# upload files 
 CONTAINER=training
-az storage blob upload \
-    --account-name $ \
-    --container-name $CONTAINER \
+az storage container create \
+    --account-name $STORAGE_ACC \
+    --name $CONTAINER \
     --name training \
-    --file train.records \
     --auth-mode login
