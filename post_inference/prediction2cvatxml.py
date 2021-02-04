@@ -66,9 +66,15 @@ def json2xml(list_predictions, images_path):
                 box.attrib["ytl"] = str(ytl)
                 box.attrib["xbr"] = str(xbr)
                 box.attrib["ybr"] = str(ybr)
+                # Subclase
                 attribute = ET.SubElement(box, "attribute")
                 attribute.attrib["name"] = pred["category"]
                 attribute.text = str(pred["classes_name"][idx])
+                # Score
+                attribute = ET.SubElement(box, "attribute")
+                attribute.attrib["name"] = "prediction_score"
+                attribute.text = str(round(pred["scores"][idx], 2))
+
     return root
 
 
