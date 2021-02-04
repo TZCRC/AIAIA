@@ -59,7 +59,7 @@ def json2xml(list_predictions, images_path):
             for idx, class_name in enumerate(pred["classes"]):
                 # Add bbox
                 box = ET.SubElement(image, "box")
-                box.attrib["label"] = str("wildlife")
+                box.attrib["label"] = pred["category"]
                 box.attrib["occluded"] = str("0")
                 ytl, xtl, ybr, xbr = pred["boxes"][idx]
                 box.attrib["xtl"] = str(xtl)
@@ -67,7 +67,7 @@ def json2xml(list_predictions, images_path):
                 box.attrib["xbr"] = str(xbr)
                 box.attrib["ybr"] = str(ybr)
                 attribute = ET.SubElement(box, "attribute")
-                attribute.attrib["name"] = str("wildlife")
+                attribute.attrib["name"] = pred["category"]
                 attribute.text = str(pred["classes_name"][idx])
     return root
 
@@ -87,16 +87,21 @@ def fix_bbox(preds):
     for pred in preds["predictions"]:
         chip = op.splitext(op.basename(pred["image_id"]))[0]
         chip_position = list(map(int, chip.split("_")[-2:]))
+        # From slice images format tile_name = f'{img_name}_{j}_{i}.jpg'
         # Chip position on the image
-        chip_position_x = chip_position[0] + 1
-        chip_position_y = chip_position[1] + 1
+        chip_position_x = chip_position[1]
+        chip_position_y = chip_position[0]
         for i, bbox in enumerate(pred["boxes"]):
             xtl, ytl, xbr, ybr = bbox
+            xtl = xtl * chip_width
+            ytl = ytl * chip_height
+            xbr = xbr * chip_width
+            ybr = ybr * chip_height
             # Multiply the box result by 400 and sum up the value of three coordinates on the image
-            new_xtl = xtl * chip_width + chip_width * chip_position_x
-            new_ytl = ytl * chip_height + chip_height * chip_position_y
-            new_xbr = xbr * chip_width + chip_width * chip_position_x
-            new_ybr = ybr * chip_height + chip_height * chip_position_y
+            new_xtl = xtl + (chip_width * chip_position_x)
+            new_ytl = ytl + (chip_height * chip_position_y)
+            new_xbr = xbr + (chip_width * chip_position_x)
+            new_ybr = ybr + (chip_height * chip_position_y)
             pred["boxes"][i] = [new_xtl, new_ytl, new_xbr, new_ybr]
     return preds
 
