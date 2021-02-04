@@ -1,0 +1,5 @@
+python aiaia_detector/evaluation.py --tfrecords_folder "./training_data_aiaia_p400" --outdir "./human-activities-outputs" --model_rel_path "./human_activities_frozen_graph.pb" -cn "boma" -cn "building" -cn "charcoal_mound" -cn "charcoal_sack" -cn "human" --model_type "human_activities" --iou_threshold .5 --conf_threshold .85 --save_individual_images False
+
+python aiaia_detector/evaluation.py --tfrecords_folder "./training_data_aiaia_p400" --outdir "./livestock-outputs" --model_rel_path "./livestock_frozen_graph.pb" -cn "cow" -cn "donkey" -cn "shoats" --model_type "livestock" --iou_threshold .5 --conf_threshold .85 --save_individual_images False
+
+python aiaia_detector/evaluation.py --tfrecords_folder "./training_data_aiaia_p400" --outdir "./wildlife-outputs" --model_rel_path "./wildlife_frozen_graph.pb" -cn "buffalo" -cn "dark_colored_large" -cn "elephant" -cn "giraffe" -cn "hippopotamus" -cn "light_coloured_large" -cn "smaller_ungulates" -cn "warthog" -cn "zebra" --model_type "wildlife" --iou_threshold .5 --conf_threshold .85 --save_individual_images False

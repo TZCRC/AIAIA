@@ -38,11 +38,12 @@ The new system is for cameras on the wing struts which take constant images alon
 
   <img width="903" alt="PAS-aerial-survey" src="https://user-images.githubusercontent.com/14057932/106537752-f6b18d00-64c8-11eb-99f7-f42cbc457264.png">
 
-## Training Data Generation
+## Training Data Generation with the aiaia_tf container
+The aiaia_tf container has multiple uses: generating training data, running evaluation on model outputs, and serving as an interactive jupyter notebook server or testing server with pytest.
+
 -  Build and access the container
 
 ```sh
-cd AIAIA/util_data
 docker-compose build
 USERID=$(id -u) docker-compose run aiaia_tf bash
 ```
@@ -229,7 +230,7 @@ You will need to add `--no-dry-run` to the following bash script to completely d
 # Delete cluster/resources once finished
 ./clean ${KF_DIR}
 ```
-### Model evaluation
+### Model evaluation - Classifier
 
 #### Running testing locally
 Download TFRecords down from GCP either change the flags in aiaia_classifier/eval.py code.
@@ -334,24 +335,31 @@ tensorboard dev upload --logdir gs://aiaia_od/model_outputs_tf1/rcnn_resnet101_s
 
 ```
 
-#### Evaluation
+#### Evaluation - Detectors
 
-Evaluation was tested locally using the aiaia_tf docker image, which can be build with\
+Evaluation was tested locally using the aiaia_tf docker image, which can be built with
 
 ```
 docker-compose build
 ```
-from the root of this repository.
+
+from the aiaia_detector folder containing the `docker-compose` file. **Edit this file to build the image for the gpu if you are testing or running eval with a gpu**
 
 After downloading the frozen graph model files and TFRecords for the test datasets, you can run the evaluation script `run_all_eval.sh` from within the docker container. Make sure that paths in this script are correct for where you downloaded the files. In this case, the script is run from the aiaia_detector folder.
 
+If running on a local cpu or VM with no GPU
+```
+docker run -u 0 --rm -v ${PWD}:/mnt/data -p 8888:8888 -it developmentseed/aiaia_tf:v1 bash run_all_eval.sh
+```
+
+If running on a local gpu or VM with a GPU
 ```
 docker run -u 0 --rm --gpus all -v ${PWD}:/mnt/data -p 8888:8888 -it developmentseed/aiaia_tf:v1 bash run_all_eval.sh
 ```
 
 This will save all outputs from the evaluation to three folders, `wildlife-outputs`, `livestock-outputs`, `human-activities-outputs`.
 
-To run the container interactively
+To run the container interactively (remove the --gpus flag if there's no gpus)
 
 ```
 docker run -u 0 --rm --gpus all -v ${PWD}:/mnt/data -p 8888:8888 -it developmentseed/aiaia_tf:v1 bash
@@ -371,6 +379,16 @@ jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --notebook-d
 ```
 
 Or use the Remote - Containers VSCode extension to run commands from within the container or use the VSCode debugger to inspect the evaluation script.
+
+Finally, to ensure that the evaluation script passes some simple tests, use pytest from within the container. This assumes the wildlife model is downloaded in the `tests` folder and is named `frozen_inference_graph.pb`, Run the tests like so:
+
+```bash
+cd ~/AIAIA/aiaia_detector
+docker-compose up
+docker run -u 0 --rm -v ${PWD}:/mnt/data -it developmentseed/aiaia_tf:v1 pytest tests/
+```
+
+To add another test, edit `tests/evaluation.py`
 
 
 ## Model inference
