@@ -20,3 +20,7 @@ az storage container create \
     --name $CONTAINER \
     --name training \
     --auth-mode login
+
+# create azure container registry
+ACR_NAME=aiaiatrain
+az acr create -n $ACR_NAME -g $RESOURCE_GROUP_NAME --sku basic

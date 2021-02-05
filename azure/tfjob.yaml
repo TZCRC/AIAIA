@@ -13,7 +13,7 @@ spec:
           serviceAccountName: kf-user
           containers:
           - name: tensorflow
-            image: geoyiacr.azurecr.io//aiaia:v1.1-tf1.15-gpu
+            image: aiaiatrain.azurecr.io/aiaia-tf1.15-frozen_graph
             command:
               - "python"
               - "/tensorflow/aiaia_detector/model_main.py"

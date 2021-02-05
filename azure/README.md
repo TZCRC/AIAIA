@@ -1,13 +1,21 @@
 ## Azure Deployment Setup
 
-1. Create the Blob Storage Container
+1. Create the Blob Storage Container and Azure Container Registry
     ```
-    bash create_blob_store.sh aiaiatrain eastus aiaiatrain
+    bash create_acr_blob.sh aiaiatrain eastus aiaiatrain
     ```
     - Make sure you have already logged into the azure cli with `az login`.
     - Note: The current raw training dataset is about 1 Tb as measured from AWS S3. Azure Blob store has no max storage limit, so it's probably the best choice over Azure File Storage (max 5 Tb limit), in case the dataset ever grows by 5x.
     - see `az account list-locations -o table` if you want to set up a container in an availability region closer to you, which may increase transfer speeds from your local machine.
-    
+    - If you need to build a new image for whatever region and reupload to acr:
+    ```
+    docker build -t aiaiatrain.azurecr.io/aiaia-tf1.15-frozen_graph -f Dockerfile-gpu .
+
+    # wait while it builds locally, then
+
+    docker push aiaiatrain.azurecr.io/aiaia-tf1.15-frozen_graph
+
+    ```
 
 2. Move the frozen graph models, model configs, and processed training data TFRecords from GCP to Azure. Or, from a local machine to Azure to using [AZCopy](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10).
    -  before using azcopy to copy from gcp > azure, make a SAS token in the azure portal byt going to Storage Accounts > gcsaiaiatrain > Shared Access signature in the side menu.
@@ -27,9 +35,9 @@
     bash setup_cluster.sh
     ```
 
-###### Missing piece
+### Missing piece
 open Kubeflow on the public IP and access to Kubeflow through the IP
-######
+
 
 5. After cluster is set up, we can submit the training job.
    
