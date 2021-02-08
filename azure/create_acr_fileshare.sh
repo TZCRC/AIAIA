@@ -14,12 +14,11 @@ az storage account create \
 
 # create a container
 # at the portal-azure 
-CONTAINER=training
-az storage container create \
+# set AZURE_STORAGE_KEY before running
+FILESHARE=training
+az storage share create \
     --account-name $STORAGE_ACC \
-    --name $CONTAINER \
-    --name training \
-    --auth-mode login
+    --name $FILESHARE \
 
 # create azure container registry
 ACR_NAME=aiaiatrain

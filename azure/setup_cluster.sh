@@ -1,7 +1,7 @@
 # use correct resource group and location
 RESOURCE_GROUP_NAME=$1
 LOCATION=$2
-
+ACR_NAME=$1
 # use correct storage acount
 STORAGE_ACC=$3
 
@@ -13,14 +13,14 @@ AKS_NAME=kubeflow-aks #cannot exceed 63 characters and can only contain letters,
 AGENT_SIZE=Standard_NC6 #this machine type can add GPU driver.
 AGENT_COUNT=2
 
-#this will take about 10mins
-az aks create -g ${RESOURCE_GROUP_NAME} -n ${AKS_NAME} -s ${AGENT_SIZE} -c ${AGENT_COUNT} -l ${LOCATION} --generate-ssh-keys
+#this will take about 10mins. must be same region and same resource group as storage so that azure file share can be mounted
+az aks create -g ${RESOURCE_GROUP_NAME} -n ${AKS_NAME} -s ${AGENT_SIZE} -c ${AGENT_COUNT} -l ${LOCATION} --kubernetes-version 1.19.6 --generate-ssh-keys
 
-# update acr for aks cluster, may take awhile
-ACR_NAME=$3
-az acr create -n $ACR_NAME -g $RESOURCE_GROUP_NAME --sku basic
-# update ACR for existing AKS cluster, this may take awhile
+# attach ACR to existing AKS cluster, this may take awhile
 az aks update -n $AKS_NAME -g $RESOURCE_GROUP_NAME --attach-acr $ACR_NAME
+
+#Create user credentials. You only need to run this command once.
+az aks get-credentials -n ${AKS_NAME} -g ${RESOURCE_GROUP_NAME}
 
 #Adding GPU driver to AKS
 #get the AKS credentials 
@@ -49,7 +49,7 @@ export BASE_DIR=$PWD
 export KF_DIR=${BASE_DIR}/${KF_NAME}
 
 # Set the configuration file to use, such as the file specified below:
-export CONFIG_URI="https://raw.githubusercontent.com/kubeflow/manifests/v1.0-branch/kfdef/kfctl_k8s_istio.v1.0.2.yaml"
+export CONFIG_URI="https://raw.githubusercontent.com/kubeflow/manifests/v1.2-branch/kfdef/kfctl_k8s_istio.v1.0.2.yaml"
 
 # Generate and deploy Kubeflow:
 mkdir -p ${KF_DIR}

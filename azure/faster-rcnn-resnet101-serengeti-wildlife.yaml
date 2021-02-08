@@ -17,12 +17,12 @@ spec:
             command:
               - "python"
               - "/tensorflow/aiaia_detector/model_main.py"
-              - "--model_dir=${blob_path}/model_outputs_tf1/rcnn_resnet101_serengeti_wildlife"
-              - "--pipeline_config_path=${blob_path}/model_configs_tf1/configs/rcnn_resnet101_serengeti_wildlife.config"
+              - "--model_dir=https://aiaiatrain.blob.core.windows.net/gcsprocessedtraining/model_outputs_tf1/rcnn_resnet101_serengeti_wildlife"
+              - "--pipeline_config_path=https://aiaiatrain.blob.core.windows.net/gcsprocessedtraining/model_configs_tf1/configs/rcnn_resnet101_serengeti_wildlife.config"
               - "--num_train_steps=50000"
               - "--sample_1_of_n_eval_examples=1"
-              - "--input_type=encoded_image_string_tensor"
-              - "--output_directory=${blob_path}//export_outputs_tf1/rcnn_resnet101_serengeti_wildlife_v3_tfs_v2"
+              - "--input_type=image_tensor"
+              - "--output_directory=https://aiaiatrain.blob.core.windows.net/gcsprocessedtraining/export_outputs_tf1/rcnn_resnet101_serengeti_wildlife"
             resources:
               limits:
                 nvidia.com/gpu: 1
@@ -32,3 +32,7 @@ spec:
                 operator: "Equal"
                 value: "present"
                 effect: "NoSchedule"
+          volumes:
+          - name: training
+            persistentVolumeClaim:
+              claimName: pvc
