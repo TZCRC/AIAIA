@@ -6,6 +6,7 @@ from azureml.core import Experiment
 from azureml.core import ScriptRunConfig
 from azureml.tensorboard import Tensorboard
 import os
+import time
 
 ws = Workspace.get(
     name="aiaia",
@@ -36,7 +37,8 @@ try:
 except ComputeTargetException:
     print("Creating a new compute target...")
     compute_config = AmlCompute.provisioning_configuration(
-        vm_size="STANDARD_NC6", max_nodes=1
+        vm_size="STANDARD_NC6",
+        max_nodes=1,
     )
 
     # Create the cluster.
@@ -49,16 +51,16 @@ print(compute_target.get_status().serialize())
 
 # Get a dataset by name
 tfrecord_ds = Dataset.get_by_name(workspace=ws, name="tfrecord_train_ds")
-tfrecord_ds.as_download(path_on_compute=".")
+dataset_input = tfrecord_ds.as_download(path_on_compute="./")
 
 src = ScriptRunConfig(
     source_directory="aiaia_detector",
     script="model_main.py",
     arguments=[
         "--model_dir",
-        "model_outputs_tf1/rcnn_resnet101_serengeti_wildlife",
+        "/tmp/training_data_aiaia_p400/model_outputs_tf1/rcnn_resnet101_serengeti_wildlife",
         "--pipeline_config_path",
-        "model_configs_tf1/configs/rcnn_resnet101_serengeti_wildlife.config",
+        "/tmp/training_data_aiaia_p400/model_configs_tf1/configs/rcnn_resnet101_serengeti_wildlife.config",
         "--num_train_steps",
         "50000",
         "--sample_1_of_n_eval_examples",
@@ -66,21 +68,24 @@ src = ScriptRunConfig(
         "--input_type",
         "image_tensor",
         "--output_directory",
-        "export_outputs_tf1/rcnn_resnet101_serengeti_wildlife",
+        "/tmp/training_data_aiaia_p400/export_outputs_tf1/rcnn_resnet101_serengeti_wildlife",
     ],
     compute_target=compute_target,
     environment=env,
 )
-
+# https://docs.microsoft.com/en-us/azure/machine-learning/how-to-save-write-experiment-files
 # Create an experiment
 exp = Experiment(ws, "test_train_rcnn_resnet101_serengeti_wildlife")
 
 run = exp.submit(src)
+run.wait_for_completion(show_output=True)
+# tb = Tensorboard([run])
 
-tb = Tensorboard([run])
+# # If successful, start() returns a string with the URI of the instance.
+# tb.start()
 
-# If successful, start() returns a string with the URI of the instance.
-tb.start()
+# while run.get_status() is "Running":
+#     time.sleep(10)
 
-# After your job completes, be sure to stop() the streaming otherwise it will continue to run.
-tb.stop()
+# # Stops after experiment reaches "Completed" or "Failed"
+# tb.stop()
