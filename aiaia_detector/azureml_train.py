@@ -51,7 +51,7 @@ print(compute_target.get_status().serialize())
 
 # Get a dataset by name
 tfrecord_ds = Dataset.get_by_name(workspace=ws, name="tfrecord_train_ds")
-dataset_input = tfrecord_ds.as_download(path_on_compute="./")
+dataset_input = tfrecord_ds.as_download(path_on_compute="/tmp/")
 
 src = ScriptRunConfig(
     source_directory="aiaia_detector",

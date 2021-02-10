@@ -212,6 +212,8 @@ def main(unused_argv):
     # running model training
     ##########
     import os
+    print("root dir")
+    print(os.listdir("/"))
 
     print("tmp dir")
     print(os.listdir("/tmp"))

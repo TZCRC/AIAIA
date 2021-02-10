@@ -1,0 +1,3 @@
+azureml-sdk
+azureml-tensorboard
+tensorboard

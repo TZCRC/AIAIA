@@ -35,6 +35,6 @@
    3. The following three commands get past a weird bug in ruamel_yaml install. 
       1. `conda create -n azureml python=3.6.2 pip=20.1.1`
       2. `conda activate azureml`
-      3. `pip install azureml-sdk` on your local machine to get the libraries needed to create a workspace and run experiments. Activate the environment when running python files using azureml.
+      3. `pip install -r requirements_aml.txt` on your local machine to get the libraries needed to create a workspace and run experiments. Activate the environment when running python files using azureml.
 
 4. 
