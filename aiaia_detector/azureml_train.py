@@ -37,9 +37,9 @@ try:
 except ComputeTargetException:
     print("Creating a new compute target...")
     compute_config = AmlCompute.provisioning_configuration(
-        vm_size="STANDARD_NC6",
-        max_nodes=1,
+        vm_size="Standard_NC6s_v3", max_nodes=1,
     )
+    # STANDARD_NC6 is cheaper but is a K80 and takes longer than a STANDARD_NC6s_v3 V100
 
     # Create the cluster.
     compute_target = ComputeTarget.create(ws, cluster_name, compute_config)
@@ -50,25 +50,31 @@ except ComputeTargetException:
 print(compute_target.get_status().serialize())
 
 # Get a dataset by name
-tfrecord_ds = Dataset.get_by_name(workspace=ws, name="tfrecord_train_ds")
-dataset_input = tfrecord_ds.as_download(path_on_compute="/tmp/")
+root_data_ds = Dataset.get_by_name(workspace=ws, name="root_data_for_azureml")
+dataset_input = root_data_ds.as_download(path_on_compute="/tmp/")
+# outputs_ds = Dataset.get_by_name(workspace=ws, name="azureml_outputs")
+# dataset_mount = outputs_ds.as_mount(path_on_compute="/mnt/")
 
 src = ScriptRunConfig(
     source_directory="aiaia_detector",
     script="model_main.py",
     arguments=[
+        "--root_data_path",
+        dataset_input,
         "--model_dir",
-        "/tmp/training_data_aiaia_p400/model_outputs_tf1/rcnn_resnet101_serengeti_wildlife",
+        "logs",
         "--pipeline_config_path",
-        "/tmp/training_data_aiaia_p400/model_configs_tf1/configs/rcnn_resnet101_serengeti_wildlife.config",
+        "model_configs_tf1/configs/rcnn_resnet101_serengeti_wildlife.config",
         "--num_train_steps",
-        "50000",
+        "1000",
         "--sample_1_of_n_eval_examples",
         "1",
         "--input_type",
         "image_tensor",
         "--output_directory",
-        "/tmp/training_data_aiaia_p400/export_outputs_tf1/rcnn_resnet101_serengeti_wildlife",
+        "outputs",
+        "write_inference_graph",
+        "True",
     ],
     compute_target=compute_target,
     environment=env,

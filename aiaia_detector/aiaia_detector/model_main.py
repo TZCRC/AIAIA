@@ -26,9 +26,16 @@ from object_detection import model_hparams
 from object_detection import model_lib
 import exporter
 from object_detection.protos import pipeline_pb2
-
+import os
 from google.protobuf import text_format
 
+
+flags.DEFINE_string(
+    "root_data_path",
+    None,
+    "Path to data folder "
+    "model_dir, pipeline_config_path, and checkpoint_dir are relative to this.",
+)
 
 flags.DEFINE_string(
     "model_dir",
@@ -89,7 +96,7 @@ flags.DEFINE_string(
     "image_tensor",
     "Type of input node. Can be "
     "one of [`image_tensor`, `encoded_image_string_tensor`, "
-    "`tf_example`] but use encoded_image_string_tensor for tfserving image containeriazation",
+    "`tf_example`] but use encoded_image_string_tensor for tfserving image containerization",
 )
 
 flags.DEFINE_string(
@@ -126,16 +133,25 @@ FLAGS = flags.FLAGS
 
 
 def trainer():
+    flags.mark_flag_as_required("root_data_path")
     flags.mark_flag_as_required("model_dir")
     flags.mark_flag_as_required("pipeline_config_path")
+    # need to write logs to logs for tensorboard, not tmp
+    # model_dir = os.path.join(FLAGS.root_data_path, FLAGS.model_dir)
+    if FLAGS.checkpoint_dir is not None:
+        checkpoint_dir = os.path.join(
+            FLAGS.root_data_path, FLAGS.checkpoint_dir
+        )
+    pipeline_config_path = os.path.join(
+        FLAGS.root_data_path, FLAGS.pipeline_config_path
+    )
     config = tf.estimator.RunConfig(
         model_dir=FLAGS.model_dir, keep_checkpoint_max=500
     )  # XXX: Manually adding `keep_checkpoint_max`
-
     train_and_eval_dict = model_lib.create_estimator_and_inputs(
         run_config=config,
         hparams=model_hparams.create_hparams(FLAGS.hparams_overrides),
-        pipeline_config_path=FLAGS.pipeline_config_path,
+        pipeline_config_path=pipeline_config_path,
         train_steps=FLAGS.num_train_steps,
         sample_1_of_n_eval_examples=FLAGS.sample_1_of_n_eval_examples,
         sample_1_of_n_eval_on_train_examples=(
@@ -157,17 +173,16 @@ def trainer():
             name = "validation_data"
             # The first eval input will be evaluated.
             input_fn = eval_input_fns[0]
+
         if FLAGS.run_once:
             estimator.evaluate(
                 input_fn,
                 steps=None,
-                checkpoint_path=tf.train.latest_checkpoint(
-                    FLAGS.checkpoint_dir
-                ),
+                checkpoint_path=tf.train.latest_checkpoint(checkpoint_dir),
             )
         else:
             model_lib.continuous_eval(
-                estimator, FLAGS.checkpoint_dir, input_fn, train_steps, name
+                estimator, checkpoint_dir, input_fn, train_steps, name
             )
     else:
         train_spec, eval_specs = model_lib.create_train_and_eval_specs(
@@ -184,8 +199,16 @@ def trainer():
 
 
 def exportor():
+    # need to write logs to logs for tensorboard, not tmp
+    #model_dir = os.path.join(FLAGS.root_data_path, FLAGS.model_dir)
+    output_directory = os.path.join(
+        FLAGS.root_data_path, FLAGS.output_directory
+    )
+    pipeline_config_path = os.path.join(
+        FLAGS.root_data_path, FLAGS.pipeline_config_path
+    )
     pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
-    with tf.gfile.GFile(FLAGS.pipeline_config_path, "r") as f:
+    with tf.gfile.GFile(pipeline_config_path, "r") as f:
         text_format.Merge(f.read(), pipeline_config)
     text_format.Merge(FLAGS.config_override, pipeline_config)
     if FLAGS.input_shape:
@@ -201,7 +224,7 @@ def exportor():
         FLAGS.input_type,
         pipeline_config,
         trained_checkpoint_prefix,
-        FLAGS.output_directory,
+        output_directory,
         input_shape=input_shape,
         write_inference_graph=FLAGS.write_inference_graph,
     )
@@ -212,8 +235,6 @@ def main(unused_argv):
     # running model training
     ##########
     import os
-    print("root dir")
-    print(os.listdir("/"))
 
     print("tmp dir")
     print(os.listdir("/tmp"))
@@ -221,18 +242,17 @@ def main(unused_argv):
     print(os.listdir("./"))
     print("top level dir")
     print(os.listdir("../"))
-    if not os.path.exists("../logs"):
-        os.makedirs("../logs")
-    logging.get_absl_handler().use_absl_log_file("absl_logging", "../logs")
-    model_dir = FLAGS.model_dir
+    # if not os.path.exists("../logs"):
+    #     os.makedirs("../logs")
+    # logging.get_absl_handler().use_absl_log_file("absl_logging", "../logs")
     logging.info("Aiaia detector starts training")
-    # trainer()
+    trainer()
     logging.info("Aiaia detector finished training")
     ##########
     # running model exportation
     ##########
     logging.info("Aiaia detector model exporting")
-    logging.info(f"from {model_dir}")
+    logging.info(f"from {FLAGS.model_dir}")
     exportor()
     logging.info("Aiaia detector finished model exportation")
 

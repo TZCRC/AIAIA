@@ -5,7 +5,7 @@ ws = Workspace.create(
     name="aiaia",
     subscription_id=os.getenv("AZURE_SUB_ID"),
     resource_group="aiaia-workspace",
-    create_resource_group=True,
+    create_resource_group=False,
     location="eastus",
 )
 
@@ -27,13 +27,23 @@ blob_datastore = Datastore.register_azure_blob_container(
 ws.set_default_datastore(os.getenv("BLOB_CONTAINER"))
 
 # create a FileDataset pointing to files in 'animals' folder and its subfolders recursively
-datastore_paths = [(blob_datastore, "training_data_aiaia_p400")]
-tfrecord_ds = Dataset.File.from_files(path=datastore_paths)
-tfrecord_ds = tfrecord_ds.register(
+datastore_paths = [(blob_datastore, "root_data_for_azureml")]
+root_data_ds = Dataset.File.from_files(path=datastore_paths)
+root_data_ds = root_data_ds.register(
     workspace=ws,
-    name="tfrecord_train_ds",
-    description="tfrecords for training classifier and object detectors. Also includes tfrecords for testing and master model, which are unused in training the classifier and three object detection models.",
+    name="root_data_for_azureml",
+    description="tfrecords and model files for training classifier and object detectors. Also includes tfrecords for testing and master model, which are unused in training the classifier and three object detection models.",
     create_new_version=True,
 )
+
+datastore_paths = [(blob_datastore, "azureml_outputs")]
+outputs_ds = Dataset.File.from_files(path=datastore_paths)
+outputs_ds = outputs_ds.register(
+    workspace=ws,
+    name="azureml_outputs",
+    description="folder to save checkpoint and frozen graph outputs.",
+    create_new_version=True,
+)
+
 
 ws.write_config(path="./.azureml", file_name="ws_config.json")
