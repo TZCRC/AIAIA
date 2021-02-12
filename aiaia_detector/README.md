@@ -28,13 +28,24 @@
    azcopy copy 'https://<region>.amazonaws.com/<bucket>/' 'https://aiaiatrain.blob.core.windows.net/aiaiatrain<SAS>' --recursive=true
    ```
 
-3. Setup AzureML libraries and workspace config on your local machine
-   1. Create a Workspace in the Azure portal.
-   2. https://docs.microsoft.com/en-us/azure/machine-learning/how-to-configure-environment#workspace
-      1. create the configuration at `AIAIA/aiaia_detector/.azureml/config.json`
-   3. The following three commands get past a weird bug in ruamel_yaml install. 
+3. Edit your .bashrc (linux, windows gitbash) or .zshrc (MacOS Big Sur) to exp[ort the environment variables needed to create a workspace.
+   1. Find the following information from the portal and edit the file:
+   ```
+   export AZURE_STORAGE_KEY=''
+   export BLOB_CONTAINER=""
+   export BLOB_ACCOUNTNAME=""
+   export BLOB_ACCOUNT_KEY=""
+   export AZURE_SUB_ID=""
+   export AZURE_REGISTRY_PASSWORD=""
+   ```
+
+4. Set up a conda environment with the azureml python package. The following three commands get past a weird bug in ruamel_yaml install. 
       1. `conda create -n azureml python=3.6.2 pip=20.1.1`
       2. `conda activate azureml`
       3. `pip install -r requirements_aml.txt` on your local machine to get the libraries needed to create a workspace and run experiments. Activate the environment when running python files using azureml.
 
-4. 
+5. After activating and setting the environment variables, if the folder paths on the blob container are correct, you can create a workspace with `python create workspace.py`
+6. Then, to run an experiment `python azureml_train.py`. You can then navigate to The Azure Machine Learning Studio to inspect your experiment run. Inputs will be loaded from the separate storage account's blob container specified in the shell variables. Model outputs will be saved to this same storage account. This workflow is based on these and other AzureML tutorials and docs: 
+   - https://docs.microsoft.com/en-us/python/api/overview/azure/ml/?preserve-view=true&view=azure-ml-py
+   - https://docs.microsoft.com/en-us/azure/machine-learning/how-to-set-up-training-targets
+   - https://docs.microsoft.com/en-us/azure/machine-learning/how-to-create-register-datasets
