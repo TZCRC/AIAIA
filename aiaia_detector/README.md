@@ -27,6 +27,7 @@
    ```
    azcopy copy 'https://<region>.amazonaws.com/<bucket>/' 'https://aiaiatrain.blob.core.windows.net/aiaiatrain<SAS>' --recursive=true
    ```
+   - You will need to edit the confing files in `model_configs_tf1` so that their paths match the paths on the compute target and then copy them back to the blob container, if the blob container paths are changed.
 
 3. Edit your .bashrc (linux, windows gitbash) or .zshrc (MacOS Big Sur) to exp[ort the environment variables needed to create a workspace.
    1. Find the following information from the portal and edit the file:
