@@ -1,6 +1,7 @@
 from azure.storage.blob import (
     BlobServiceClient,
 )  # ideally we wouldn't need this and could use AzureML to sync outputs at the end of training
+import os
 
 
 def upload_file(client, source, dest):
