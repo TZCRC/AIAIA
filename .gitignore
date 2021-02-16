@@ -127,5 +127,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
 aiaia_detector/aiaia_detector/tests/frozen_inference_graph.pb
+aiaia_detector/.azureml

@@ -1,0 +1,4 @@
+azureml-sdk
+azureml-tensorboard
+tensorboard
+azure-storage-blob

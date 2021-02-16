@@ -1,12 +1,7 @@
 FROM tensorflow/tensorflow:1.15.0-gpu-py3
 
-# Install google utils for accessing GCP per https://cloud.google.com/sdk/docs/quickstart-debian-ubuntu
-RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | \
-    tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | \
-    apt-key --keyring /usr/share/keyrings/cloud.google.gpg  add - && \
-    apt-get update -y && \
-    apt-get install google-cloud-sdk -y
+# Install azure python lib to access blob storage
+RUN pip install azure-storage-blob
 
 # Install wget (to make life easier below) and editors (to allow people to edit the files inside the container)
 RUN apt-get update -y && \
