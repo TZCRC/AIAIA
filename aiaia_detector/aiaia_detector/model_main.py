@@ -37,27 +37,6 @@ flags.DEFINE_string(
     "model_dir, pipeline_config_path, and checkpoint_dir are relative to this.",
 )
 flags.DEFINE_string(
-    "connection_string",
-    None,
-    "Connection string for external storage account to save outputs if running on azureml. "
-    "If None, this does not save all outputs to an external storage account and outputs are "
-    "instead saved to model_dir and the output_directory folders",
-)
-flags.DEFINE_string(
-    "external_blob_container",
-    None,
-    "Container for external storage account to save outputs if running on azureml. "
-    "If None, this does not save all outputs to an external storage account and outputs are "
-    "instead saved to model_dir and the output_directory folders",
-)
-flags.DEFINE_string(
-    "external_blob_container_folder",
-    None,
-    "Folder in container for external storage account to save outputs if running on azureml. "
-    "If None, this does not save all outputs to an external storage account and outputs are "
-    "instead saved to model_dir and the output_directory folders",
-)
-flags.DEFINE_string(
     "model_dir",
     None,
     "Path to output model directory "
@@ -216,15 +195,6 @@ def trainer():
 
         # Currently only a single Eval Spec is allowed.
         tf.estimator.train_and_evaluate(estimator, train_spec, eval_specs[0])
-    if FLAGS.connection_string is not None:
-        client = ub.get_client(
-            FLAGS.connection_string, FLAGS.external_blob_container
-        )
-        ub.upload_dir(
-            client=client,
-            source=FLAGS.model_dir,
-            dest=FLAGS.external_blob_container_folder,
-        )
 
 
 def exportor():
@@ -257,15 +227,6 @@ def exportor():
         input_shape=input_shape,
         write_inference_graph=FLAGS.write_inference_graph,
     )
-    if FLAGS.connection_string is not None:
-        client = ub.get_client(
-            FLAGS.connection_string, FLAGS.external_blob_container
-        )
-        ub.upload_dir(
-            client=client,
-            source=output_directory,
-            dest=FLAGS.external_blob_container_folder,
-        )
 
 
 def main(unused_argv):
@@ -274,12 +235,13 @@ def main(unused_argv):
     ##########
     import os
 
-    print("tmp dir")
-    print(os.listdir("/tmp"))
-    print("Model Main dir")
-    print(os.listdir("./"))
-    print("top level dir")
-    print(os.listdir("../"))
+    # useful prints for understanding folder structure on the compute target
+    # print("tmp dir")
+    # print(os.listdir("/tmp"))
+    # print("Model Main dir")
+    # print(os.listdir("./"))
+    # print("top level dir")
+    # print(os.listdir("../"))
     logging.info("Aiaia detector starts training")
     trainer()  # comment this out to not do training. if you do this, you can't have write_inference_graph=True because there won't be one to write out
     logging.info("Aiaia detector finished training")
