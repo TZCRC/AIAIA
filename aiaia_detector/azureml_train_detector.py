@@ -39,7 +39,9 @@ try:
 except ComputeTargetException:
     print("Creating a new compute target...")
     compute_config = AmlCompute.provisioning_configuration(
-        vm_size="Standard_NC6s_v3", max_nodes=1,
+        vm_size="Standard_NC6s_v3",
+        max_nodes=1,
+        idle_seconds_before_scaledown=1,
     )
     # STANDARD_NC6 is cheaper but is a K80 and takes longer than a STANDARD_NC6s_v3 V100
 
@@ -57,21 +59,23 @@ root_data_ds = Dataset.get_by_name(
 )
 dataset_input = root_data_ds.as_download(path_on_compute="/tmp/")
 
-model_logs_output_cfg = OutputFileDatasetConfig(name="model_logs").as_upload(
-    overwrite=True
-)
+model_logs_output_cfg = OutputFileDatasetConfig(
+    name="model_logs",
+    destination=(
+        ws.datastores[os.getenv("BLOB_CONTAINER")],
+        "azureml_outputs_detector/model_logs",
+    ),
+).as_upload(overwrite=True)
 
-# destination=(
-#     ws.datastores[os.getenv("BLOB_CONTAINER")],
-#     "azureml_outputs_detector/model_logs",
 
-model_output_cfg = OutputFileDatasetConfig(name="model_outputs").as_upload(
-    overwrite=True
-)
+model_output_cfg = OutputFileDatasetConfig(
+    name="model_outputs",
+    destination=(
+        ws.datastores[os.getenv("BLOB_CONTAINER")],
+        "azureml_outputs_detector/model_output",
+    ),
+).as_upload(overwrite=True)
 
-# destination=(
-#     ws.datastores[os.getenv("BLOB_CONTAINER")],
-#     "azureml_outputs_detector/model_output",
 
 train_export_step = PythonScriptStep(
     name="Run training and export model",
