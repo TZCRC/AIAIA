@@ -40,13 +40,17 @@
    export AZURE_REGISTRY_PASSWORD=""
    ```
 
-4. Set up a conda environment with the azureml python package. The following three commands get past a weird bug in ruamel_yaml install. 
+4. Install Miniconda for your OS: https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
+5. Set up a conda environment with the azureml python package. The following three commands get past a weird bug in ruamel_yaml install. 
       1. `conda create -n azureml python=3.6.2 pip=20.1.1`
       2. `conda activate azureml`
       3. `pip install -r requirements_aml.txt` on your local machine to get the libraries needed to create a workspace and run experiments. Activate the environment when running python files using azureml.
 
-5. After activating and setting the environment variables, if the folder paths on the blob container are correct, you can create a workspace with `python create workspace.py`
-6. Then, to run an experiment `python azureml_train.py`. You can then navigate to The Azure Machine Learning Studio to inspect your experiment run. Inputs will be loaded from the separate storage account's blob container specified in the shell variables. Model outputs will be saved to this same storage account. This workflow is based on these and other AzureML tutorials and docs: 
+6. After activating and setting the environment variables, if the folder paths on the blob container are correct, you can create a workspace with `python create workspace.py`. You won't need to create this if it already exists.
+7. Then, to run an experiment: `python azureml_train.py`. You can then navigate to The Azure Machine Learning Studio to inspect your experiment run. Inputs will be loaded from the separate storage account's blob container specified in the shell variables. Model outputs will be saved to this same storage account. 
+
+
+This workflow is based on these and other AzureML tutorials and docs: 
    - https://docs.microsoft.com/en-us/python/api/overview/azure/ml/?preserve-view=true&view=azure-ml-py
    - https://docs.microsoft.com/en-us/azure/machine-learning/how-to-set-up-training-targets
    - https://docs.microsoft.com/en-us/azure/machine-learning/how-to-create-register-datasets

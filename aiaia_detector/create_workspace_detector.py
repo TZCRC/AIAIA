@@ -2,10 +2,10 @@ from azureml.core import Workspace, Dataset, Datastore
 import os
 
 ws = Workspace.create(
-    name="aiaia",
+    name="aiaia-workspace-detector",
     subscription_id=os.getenv("AZURE_SUB_ID"),
-    resource_group="aiaia-workspace",
-    create_resource_group=False,
+    resource_group="aiaia-workspace-detector",
+    create_resource_group=True,
     location="eastus",
 )
 
@@ -27,20 +27,20 @@ blob_datastore = Datastore.register_azure_blob_container(
 ws.set_default_datastore(os.getenv("BLOB_CONTAINER"))
 
 # create a FileDataset pointing to files in 'animals' folder and its subfolders recursively
-datastore_paths = [(blob_datastore, "root_data_for_azureml")]
+datastore_paths = [(blob_datastore, "root_data_for_azureml_detector")]
 root_data_ds = Dataset.File.from_files(path=datastore_paths)
 root_data_ds = root_data_ds.register(
     workspace=ws,
-    name="root_data_for_azureml",
+    name="root_data_for_azureml_detector",
     description="tfrecords and model files for training classifier and object detectors. Also includes tfrecords for testing and master model, which are unused in training the classifier and three object detection models.",
     create_new_version=True,
 )
 
-datastore_paths = [(blob_datastore, "azureml_outputs")]
+datastore_paths = [(blob_datastore, "azureml_outputs_detector")]
 outputs_ds = Dataset.File.from_files(path=datastore_paths)
 outputs_ds = outputs_ds.register(
     workspace=ws,
-    name="azureml_outputs",
+    name="azureml_outputs_detector",
     description="folder to save checkpoint and frozen graph outputs.",
     create_new_version=True,
 )

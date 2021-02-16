@@ -28,7 +28,7 @@ import exporter
 from object_detection.protos import pipeline_pb2
 import os
 from google.protobuf import text_format
-
+import upload_blob as ub
 
 flags.DEFINE_string(
     "root_data_path",
@@ -36,12 +36,33 @@ flags.DEFINE_string(
     "Path to data folder "
     "model_dir, pipeline_config_path, and checkpoint_dir are relative to this.",
 )
-
+flags.DEFINE_string(
+    "connection_string",
+    None,
+    "Connection string for external storage account to save outputs if running on azureml. "
+    "If None, this does not save all outputs to an external storage account and outputs are "
+    "instead saved to model_dir and the output_directory folders",
+)
+flags.DEFINE_string(
+    "external_blob_container",
+    None,
+    "Container for external storage account to save outputs if running on azureml. "
+    "If None, this does not save all outputs to an external storage account and outputs are "
+    "instead saved to model_dir and the output_directory folders",
+)
+flags.DEFINE_string(
+    "external_blob_container_folder",
+    None,
+    "Folder in container for external storage account to save outputs if running on azureml. "
+    "If None, this does not save all outputs to an external storage account and outputs are "
+    "instead saved to model_dir and the output_directory folders",
+)
 flags.DEFINE_string(
     "model_dir",
     None,
     "Path to output model directory "
-    "where event and checkpoint files will be written.",
+    "where event and checkpoint files will be written. Don't use ./logs or "
+    "./outputs during long running training because this increases latency during training.",
 )
 flags.DEFINE_string(
     "pipeline_config_path", None, "Path to pipeline config " "file."
@@ -119,6 +140,7 @@ flags.DEFINE_string(
 flags.DEFINE_string(
     "output_directory", None, "Path to write outputs - the export module."
 )
+
 flags.DEFINE_string(
     "config_override",
     "",
@@ -136,8 +158,6 @@ def trainer():
     flags.mark_flag_as_required("root_data_path")
     flags.mark_flag_as_required("model_dir")
     flags.mark_flag_as_required("pipeline_config_path")
-    # need to write logs to logs for tensorboard, not tmp
-    # model_dir = os.path.join(FLAGS.root_data_path, FLAGS.model_dir)
     if FLAGS.checkpoint_dir is not None:
         checkpoint_dir = os.path.join(
             FLAGS.root_data_path, FLAGS.checkpoint_dir
@@ -196,11 +216,22 @@ def trainer():
 
         # Currently only a single Eval Spec is allowed.
         tf.estimator.train_and_evaluate(estimator, train_spec, eval_specs[0])
+    if FLAGS.connection_string is not None:
+        client = ub.get_client(
+            FLAGS.connection_string, FLAGS.external_blob_container
+        )
+        ub.upload_dir(
+            client=client,
+            source=FLAGS.model_dir,
+            dest=FLAGS.external_blob_container_folder,
+            container_name=FLAGS.external_blob_container,
+            connect_str=FLAGS.connection_string,
+        )
 
 
 def exportor():
     # need to write logs to logs for tensorboard, not tmp
-    #model_dir = os.path.join(FLAGS.root_data_path, FLAGS.model_dir)
+    # model_dir = os.path.join(FLAGS.root_data_path, FLAGS.model_dir)
     output_directory = os.path.join(
         FLAGS.root_data_path, FLAGS.output_directory
     )
@@ -218,7 +249,7 @@ def exportor():
         ]
     else:
         input_shape = None
-    # Loook for the latest checkpoint in model_dir
+    # Look for the latest checkpoint in model_dir
     trained_checkpoint_prefix = tf.train.latest_checkpoint(FLAGS.model_dir)
     exporter.export_inference_graph(
         FLAGS.input_type,
@@ -228,6 +259,17 @@ def exportor():
         input_shape=input_shape,
         write_inference_graph=FLAGS.write_inference_graph,
     )
+    if FLAGS.connection_string is not None:
+        client = ub.get_client(
+            FLAGS.connection_string, FLAGS.external_blob_container
+        )
+        ub.upload_dir(
+            client=client,
+            source=output_directory,
+            dest=FLAGS.external_blob_container_folder,
+            container_name=FLAGS.external_blob_container,
+            connect_str=FLAGS.connection_string,
+        )
 
 
 def main(unused_argv):
@@ -242,11 +284,8 @@ def main(unused_argv):
     print(os.listdir("./"))
     print("top level dir")
     print(os.listdir("../"))
-    # if not os.path.exists("../logs"):
-    #     os.makedirs("../logs")
-    # logging.get_absl_handler().use_absl_log_file("absl_logging", "../logs")
     logging.info("Aiaia detector starts training")
-    trainer()
+    # trainer()
     logging.info("Aiaia detector finished training")
     ##########
     # running model exportation

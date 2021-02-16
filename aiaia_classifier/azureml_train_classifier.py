@@ -9,9 +9,9 @@ import os
 import time
 
 ws = Workspace.get(
-    name="aiaia",
+    name="aiaia-workspace-classifier",
     subscription_id=os.getenv("AZURE_SUB_ID"),
-    resource_group="aiaia-workspace",
+    resource_group="aiaia-workspace-classifier",
 )
 
 
@@ -21,7 +21,7 @@ env.docker.enabled = True
 env.docker.base_image_registry.address = "aiaiatrain.azurecr.io"
 env.docker.base_image_registry.username = "aiaiatrain"
 
-env.docker.base_image = "aiaia-tf1.15-frozen_graph:latest"
+env.docker.base_image = "v1.2-xception-binary-classifier:latest"
 env.python.user_managed_dependencies = True
 
 # Run az acr credential show --name aiaiatrain to get credentials for the ACR.
@@ -50,7 +50,9 @@ except ComputeTargetException:
 print(compute_target.get_status().serialize())
 
 # Get a dataset by name
-root_data_ds = Dataset.get_by_name(workspace=ws, name="root_data_for_azureml")
+root_data_ds = Dataset.get_by_name(
+    workspace=ws, name="root_data_for_azureml_detector"
+)
 dataset_input = root_data_ds.as_download(path_on_compute="/tmp/")
 # outputs_ds = Dataset.get_by_name(workspace=ws, name="azureml_outputs")
 # dataset_mount = outputs_ds.as_mount(path_on_compute="/mnt/")
@@ -66,7 +68,7 @@ src = ScriptRunConfig(
         "--pipeline_config_path",
         "model_configs_tf1/configs/rcnn_resnet101_serengeti_wildlife.config",
         "--num_train_steps",
-        "1000",
+        "200",
         "--sample_1_of_n_eval_examples",
         "1",
         "--input_type",
@@ -75,11 +77,21 @@ src = ScriptRunConfig(
         "outputs",
         "write_inference_graph",
         "True",
+        "--connection_string",
+        os.getenv("AZURE_CON_STRING"),
+        "external_blob_container",
+        os.getenv("BLOB_CONTAINER"),
+        "external_blob_container_folder",
+        "azureml_outputs_detector",
     ],
     compute_target=compute_target,
     environment=env,
 )
+# using "outputs" for --output_directory may cause latency issues
+# using "logs" for --model_dir makes tensorboard profiling with azureml possible, but may cause latency issues
+# both of these folders are mounts to blob storage that may continuously write files during the training process.
 # https://docs.microsoft.com/en-us/azure/machine-learning/how-to-save-write-experiment-files
+
 # Create an experiment
 exp = Experiment(ws, "test_train_rcnn_resnet101_serengeti_wildlife")
 
