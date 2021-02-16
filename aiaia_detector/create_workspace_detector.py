@@ -5,7 +5,7 @@ ws = Workspace.create(
     name="aiaia-workspace-detector",
     subscription_id=os.getenv("AZURE_SUB_ID"),
     resource_group="aiaia-workspace-detector",
-    create_resource_group=True,
+    create_resource_group=False,
     location="eastus",
 )
 

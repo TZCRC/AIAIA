@@ -224,8 +224,6 @@ def trainer():
             client=client,
             source=FLAGS.model_dir,
             dest=FLAGS.external_blob_container_folder,
-            container_name=FLAGS.external_blob_container,
-            connect_str=FLAGS.connection_string,
         )
 
 
@@ -267,8 +265,6 @@ def exportor():
             client=client,
             source=output_directory,
             dest=FLAGS.external_blob_container_folder,
-            container_name=FLAGS.external_blob_container,
-            connect_str=FLAGS.connection_string,
         )
 
 
@@ -285,7 +281,7 @@ def main(unused_argv):
     print("top level dir")
     print(os.listdir("../"))
     logging.info("Aiaia detector starts training")
-    # trainer()
+    trainer()  # comment this out to not do training. if you do this, you can't have write_inference_graph=True because there won't be one to write out
     logging.info("Aiaia detector finished training")
     ##########
     # running model exportation
