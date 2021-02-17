@@ -103,7 +103,10 @@ train_export_step = PythonScriptStep(
     ],
     compute_target=compute_target,
     runconfig=runconfig,
+    all_reuse=True,  # allows testing
+    version=1,  # version of the step
 )
+
 # https://docs.microsoft.com/en-us/azure/machine-learning/how-to-save-write-experiment-files
 # Create an experiment
 
