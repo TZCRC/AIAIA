@@ -3,10 +3,12 @@ from azureml.core import Environment
 from azureml.core.compute import ComputeTarget, AmlCompute
 from azureml.core.compute_target import ComputeTargetException
 from azureml.core import Experiment
-from azureml.core import ScriptRunConfig
+from azureml.pipeline.steps import PythonScriptStep
+from azureml.core.runconfig import RunConfiguration
 from azureml.tensorboard import Tensorboard
+from azureml.data import OutputFileDatasetConfig
+from azureml.pipeline.core import Pipeline
 import os
-import time
 
 ws = Workspace.get(
     name="aiaia-workspace-classifier",
@@ -26,8 +28,8 @@ env.python.user_managed_dependencies = True
 
 # Run az acr credential show --name aiaiatrain to get credentials for the ACR.
 env.docker.base_image_registry.password = os.getenv("AZURE_REGISTRY_PASSWORD")
-
-
+runconfig = RunConfiguration()
+runconfig.environment = env
 # Choose a name for your cluster.
 cluster_name = "gpu-cluster"
 
@@ -37,7 +39,7 @@ try:
 except ComputeTargetException:
     print("Creating a new compute target...")
     compute_config = AmlCompute.provisioning_configuration(
-        vm_size="Standard_NC6s_v3", max_nodes=1,
+        vm_size="STANDARD_NC6", max_nodes=1, idle_seconds_before_scaledown=1,
     )
     # STANDARD_NC6 is cheaper but is a K80 and takes longer than a STANDARD_NC6s_v3 V100
 
@@ -51,59 +53,85 @@ print(compute_target.get_status().serialize())
 
 # Get a dataset by name
 root_data_ds = Dataset.get_by_name(
-    workspace=ws, name="root_data_for_azureml_detector"
+    workspace=ws, name="root_data_for_azureml_classifier"
 )
 dataset_input = root_data_ds.as_download(path_on_compute="/tmp/")
-# outputs_ds = Dataset.get_by_name(workspace=ws, name="azureml_outputs")
-# dataset_mount = outputs_ds.as_mount(path_on_compute="/mnt/")
 
-src = ScriptRunConfig(
-    source_directory="aiaia_detector",
-    script="model_main.py",
+model_logs_output_cfg = OutputFileDatasetConfig(
+    name="model_logs",
+    destination=(
+        ws.datastores[os.getenv("BLOB_CONTAINER")],
+        "azureml_outputs_classifier/model_logs",
+    ),
+).as_upload(overwrite=True)
+
+
+model_output_cfg = OutputFileDatasetConfig(
+    name="model_outputs",
+    destination=(
+        ws.datastores[os.getenv("BLOB_CONTAINER")],
+        "azureml_outputs_classifier/model_output",
+    ),
+).as_upload(overwrite=True)
+
+model_results_cfg = OutputFileDatasetConfig(
+    name="model_results",
+    destination=(
+        ws.datastores[os.getenv("BLOB_CONTAINER")],
+        "azureml_outputs_classifier/model_results",
+    ),
+).as_upload(overwrite=True)
+
+
+train_export_step = PythonScriptStep(
+    name="Run training and export model",
+    source_directory="aiaia_classifier",
+    script_name="model.py",
     arguments=[
-        "--root_data_path",
+        "--n_classes=2",
+        "--class_names=not_object,object",
+        "--countries=aiaia",
+        "--tf_dense_size=153",
+        "--tf_dense_dropout_rate=0.34",
+        "--tf_learning_rate=0.00027",
+        "--tf_optimizer=adam",
+        "--tf_train_data_dir=training_data_aiaia_p400/classification_training_tfrecords/",
+        "--tf_val_data_dir=training_data_aiaia_p400/classification_training_tfrecords/",
+        "--model_logs_dir",
+        model_logs_output_cfg,
+        "--local_dataset_dir",
         dataset_input,
-        "--model_dir",
-        "logs",
-        "--pipeline_config_path",
-        "model_configs_tf1/configs/rcnn_resnet101_serengeti_wildlife.config",
-        "--num_train_steps",
-        "200",
-        "--sample_1_of_n_eval_examples",
-        "1",
-        "--input_type",
-        "image_tensor",
-        "--output_directory",
-        "outputs",
-        "write_inference_graph",
-        "True",
-        "--connection_string",
-        os.getenv("AZURE_CON_STRING"),
-        "external_blob_container",
-        os.getenv("BLOB_CONTAINER"),
-        "external_blob_container_folder",
-        "azureml_outputs_detector",
+        "--tf_steps_per_checkpoint=10",  # was 100
+        "--tf_steps_per_summary=10",  # was 500
+        "--tf_train_steps=60",  # was 6000
+        "--tf_batch_size=8",
+        "--model_output_dir",
+        model_output_cfg,
+        "--results_dir",
+        model_results_cfg,
+        "--model_upload_id=v1",
+        "--model_id=abc",
     ],
     compute_target=compute_target,
-    environment=env,
+    runconfig=runconfig,
 )
-# using "outputs" for --output_directory may cause latency issues
-# using "logs" for --model_dir makes tensorboard profiling with azureml possible, but may cause latency issues
-# both of these folders are mounts to blob storage that may continuously write files during the training process.
 # https://docs.microsoft.com/en-us/azure/machine-learning/how-to-save-write-experiment-files
-
 # Create an experiment
-exp = Experiment(ws, "test_train_rcnn_resnet101_serengeti_wildlife")
 
-run = exp.submit(src)
+steps = [train_export_step]
+
+pl = Pipeline(workspace=ws, steps=steps)
+
+pl.validate()
+
+exp = Experiment(ws, "test_train_classifier_xception")
+
+run = exp.submit(pl, regenerate_outputs=False)
 run.wait_for_completion(show_output=True)
 # tb = Tensorboard([run])
 
 # # If successful, start() returns a string with the URI of the instance.
 # tb.start()
-
-# while run.get_status() is "Running":
-#     time.sleep(10)
 
 # # Stops after experiment reaches "Completed" or "Failed"
 # tb.stop()

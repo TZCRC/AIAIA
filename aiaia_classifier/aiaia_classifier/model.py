@@ -44,43 +44,33 @@ flags.DEFINE_integer("n_map_threads", 4, "threads")
 flags.DEFINE_integer("shuffle_buffer_size", None, "should match size of train dataset")
 flags.DEFINE_integer("prefetch_buffer_size", 1, "prefetch buffer size")
 flags.DEFINE_string(
-    "tf_train_data_dir", "gs://ffda_poi_jakarta", "Path to data dir on GCS."
+    "tf_train_data_dir", None, "Path to training data dir. Relative to local_dataset_dir."
 )
 flags.DEFINE_string(
-    "tf_val_data_dir", "gs://ffda_poi_jakarta", "Path to data dir on GCS."
-)
-flags.DEFINE_string("tf_test_data_dir", None, "Path to data dir on GCS.")
-flags.DEFINE_string("gcs_bucket_name", "ffda_poi_jakarta", "directory name on GCS")
+    "tf_val_data_dir", None, "Path to val data dir. Relative to local_dataset_dir."
+
 flags.DEFINE_string(
-    "gcs_destination_blob",
-    "experiment_26_t5",
-    "blob name on GCS to write evaluation, tf records, checkpoints after training",
+    "model_logs_dir",
+    "model_logs",
+    "Directory to write evaluation, tf records, checkpoints after training",
 )
+
 flags.DEFINE_string(
-    "gcs_destination_bucket", "ffda_global", "directory name for global on GCS"
-)
-flags.DEFINE_string(
-    "local_dataset_dirs", "/home/data", "local directory to copy data into"
+    "local_dataset_dir", None, "local directory to copy data into."
 )
 flags.DEFINE_string(
-    "tf_model_dir", "/ml/models", "Path or GCS directory to save models."
+    "model_output_dir", "model_output", "Path to save models."
 )
 flags.DEFINE_string(
-    "tf_export_dir",
-    "gs://ffda_poi_dar/export_dir",
-    "Path to GCS directory to export model",
-)
-flags.DEFINE_string(
-    "tf_test_results_dir",
-    "gs://ffda_poi_dar_updated/results",
+    "results_dir",
+    None,
     "Path to GCS to write results",
 )
-flags.DEFINE_string("model_id", "s", "model id for saving, define in katib file")
+flags.DEFINE_string("model_id", "s", "model id for saving.")
 flags.DEFINE_string(
-    "model_gs_upload_id",
+    "model_upload_id",
     None,
-    "model id for upload paths that will be unique to each"
-    "experiment trial, define in katib file as  with {{.Trial}}",
+    "model id for upload paths that will be unique to each",
 )
 flags.DEFINE_string(
     "tf_test_ckpt_path",
@@ -247,34 +237,9 @@ def main(_):
     Function to run TF Estimator
     Note: set the `TF_CONFIG` environment variable according to:
     https://www.tensorflow.org/api_docs/python/tf/estimator/train_and_evaluate
+    if running locally. Otherwise, AzureML sets the TF_CONFIG automatically: 
+    https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-tensorflow
     """
-
-    ###################################
-    # Set parameters/config
-    ###################################
-
-    # Set logging info so it'll be written the command line
-    logging.set_verbosity(logging.INFO)
-
-    os.environ["TF_CONFIG"] = "{}"
-    os.environ["_TF_CONFIG_ENV"] = "{}"
-
-    # Set a bunch of TF config params
-    tf_config = os.environ.get("TF_CONFIG", "{}")
-    logging.info("TF_CONFIG %s", tf_config)
-    tf_config_json = json.loads(tf_config)
-    cluster = tf_config_json.get("cluster")
-    job_name = tf_config_json.get("task", {}).get("type")
-    task_index = tf_config_json.get("task", {}).get("index")
-    logging.info("cluster=%s job_name=%s task_index=%s", cluster, job_name, task_index)
-
-    if not job_name or job_name.lower() in ["chief", "master"]:
-        logging.info("Will export model.")
-    else:
-        logging.info("Won't export model.")
-
-    print("TF_CONFIG:", os.environ["TF_CONFIG"])
-    print("_TF_CONFIG_ENV:", os.environ["_TF_CONFIG_ENV"])
 
     run_config = tf.estimator.RunConfig(
         model_dir=os.path.join(FLAGS.tf_model_dir, FLAGS.model_id),
@@ -513,18 +478,6 @@ def main(_):
     logging.info("train and evaluate")
     tf.estimator.train_and_evaluate(classifier, train_spec, eval_spec)
     logging.info("training done.")
-
-    ############################################################################
-    # Upload checkpoints, tf events, and model exported for evaluation to GCP
-    ############################################################################
-    bucket_name = FLAGS.gcs_destination_bucket
-    blob_root = os.path.join(FLAGS.gcs_destination_blob, FLAGS.model_gs_upload_id)
-    basedir = os.path.join(FLAGS.tf_model_dir, FLAGS.model_id)
-
-    logging.info(f"Uploading files from {basedir} to gs://{bucket_name}/{blob_root}")
-    upload_files(bucket_name, blob_root, basedir)
-    logging.info("Files uploaded.")
-
 
 if __name__ == "__main__":
     app.run(main)
