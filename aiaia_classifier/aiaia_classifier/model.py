@@ -59,6 +59,13 @@ flags.DEFINE_string(
 )
 
 flags.DEFINE_string(
+    "tf_test_data_dir",
+    None,
+    "Path to test data dir. Relative to local_dataset_dir.",
+)
+
+
+flags.DEFINE_string(
     "model_outputs_dir",
     "model_outputs",
     "Directory to write evaluation, tf records, checkpoints, and frozen_graph.pb after training",
@@ -269,6 +276,10 @@ def main(_):
         tf_test_ckpt_path = os.path.join(
             FLAGS.local_dataset_dir, FLAGS.tf_test_ckpt_path
         )
+        tf_test_data_dir = os.path.join(
+            FLAGS.local_dataset_dir, FLAGS.tf_test_data_dir
+        )
+
     run_config = tf.estimator.RunConfig(
         model_dir=os.path.join(model_logs_dir, FLAGS.model_id),
         save_summary_steps=FLAGS.tf_steps_per_summary,
@@ -320,104 +331,6 @@ def main(_):
     classifier = tf.estimator.add_metrics(classifier, fbeta_m)
     classifier = tf.estimator.add_metrics(classifier, precision_m)
     classifier = tf.estimator.add_metrics(classifier, recall_m)
-
-    ###################################
-    # Check if user wants to run test
-    ###################################
-    # Create test dataset function if needed
-    if FLAGS.tf_test_ckpt_path:
-        print(
-            "Overriding training and running test set prediction with model ckpt:",
-            tf_test_ckpt_path,
-        )
-
-        os.makedirs(results_dir, exist_ok=True)
-
-        logging.info("Beginning test for model")
-
-        # Create test data function, get `y_true`
-        test_file_patterns = country_file_patterns(
-            FLAGS.tf_test_data_dir,
-            "test*{country}*.tfrecords",
-            FLAGS.countries,
-        )
-        logging.info(test_file_patterns)
-        map_func = partial(
-            parse_fn, n_chan=3, n_classes=model_params["n_classes"]
-        )
-
-        dataset_test = get_dataset_feeder(
-            file_patterns=test_file_patterns,
-            data_map_func=map_func,
-            repeat=False,
-            n_map_threads=FLAGS.n_map_threads,
-            batch_size=1,  # Use bs=1 here to count samples instead of batches
-            prefetch_buffer_size=1,
-        )
-
-        y_true = [features[1].numpy()[0] for features in dataset_test]
-        print(f"Found {len(y_true)} total samples to test.")
-
-        # Reset the dataset iteration for prediction
-        dataset_test_fn = partial(
-            get_dataset_feeder,
-            file_patterns=test_file_patterns,
-            data_map_func=map_func,
-            repeat=False,
-            n_map_threads=FLAGS.n_map_threads,
-            batch_size=FLAGS.tf_batch_size,
-            prefetch_buffer_size=1,
-        )
-
-        # Reset test iterator and run predictions
-        raw_preds = classifier.predict(
-            dataset_test_fn,
-            yield_single_examples=True,
-            checkpoint_path=tf_test_ckpt_path,
-        )
-
-        p_list = [raw_pred["output"] for raw_pred in raw_preds]
-        preds = [(p >= 0.5).astype(int) for p in tqdm(p_list, miniters=1000)]
-
-        output_d = {
-            "raw_prediction": p_list,
-            "threshold": preds,
-            "true-label": y_true,
-        }
-
-        df_pred = pd.DataFrame.from_dict(output_d)
-        df_pred.to_csv(os.path.join(results_dir, "preds.csv"))
-
-        print("preds csv written")
-
-        recall_scores = [
-            recall_score(np.array(y_true)[:, i], np.array(preds)[:, i])
-            for i in np.arange(0, FLAGS.n_classes)
-        ]
-
-        precision_scores = [
-            precision_score(np.array(y_true)[:, i], np.array(preds)[:, i])
-            for i in np.arange(0, FLAGS.n_classes)
-        ]
-
-        fbeta_scores = [
-            fbeta_score(np.array(y_true)[:, i], np.array(preds)[:, i], beta=2)
-            for i in np.arange(0, FLAGS.n_classes)
-        ]
-
-        d = {
-            "Precision": precision_scores,
-            "Recall": recall_scores,
-            "fbeta_2": fbeta_scores,
-            "POI": model_params["class_names"],
-        }
-
-        df = pd.DataFrame.from_dict(d)
-        df["POI"] = model_params["class_names"]
-        df.to_csv(os.path.join(results_dir, "test_stats.csv"))
-
-        print("test stats written")
-        return d
 
     ###################################
     # Create data feeder functions
