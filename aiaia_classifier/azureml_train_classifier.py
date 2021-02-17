@@ -57,17 +57,8 @@ root_data_ds = Dataset.get_by_name(
 )
 dataset_input = root_data_ds.as_download(path_on_compute="/tmp/")
 
-model_logs_output_cfg = OutputFileDatasetConfig(
-    name="model_logs",
-    destination=(
-        ws.datastores[os.getenv("BLOB_CONTAINER")],
-        "azureml_outputs_classifier/model_logs",
-    ),
-).as_upload(overwrite=True)
-
-
 model_output_cfg = OutputFileDatasetConfig(
-    name="model_outputs",
+    name="model_output",
     destination=(
         ws.datastores[os.getenv("BLOB_CONTAINER")],
         "azureml_outputs_classifier/model_output",
@@ -97,20 +88,18 @@ train_export_step = PythonScriptStep(
         "--tf_optimizer=adam",
         "--tf_train_data_dir=training_data_aiaia_p400/classification_training_tfrecords/",
         "--tf_val_data_dir=training_data_aiaia_p400/classification_training_tfrecords/",
-        "--model_logs_dir",
-        model_logs_output_cfg,
+        "--model_outputs_dir",
+        model_output_cfg,
         "--local_dataset_dir",
         dataset_input,
-        "--tf_steps_per_checkpoint=10",  # was 100
-        "--tf_steps_per_summary=10",  # was 500
+        "--tf_steps_per_checkpoint=60",  # was 100
+        "--tf_steps_per_summary=60",  # was 500
         "--tf_train_steps=60",  # was 6000
         "--tf_batch_size=8",
-        "--model_output_dir",
-        model_output_cfg,
         "--results_dir",
         model_results_cfg,
         "--model_upload_id=v1",
-        "--model_id=abc",
+        "--model_id=abc",  # put the unique tag for the experiment run here.
     ],
     compute_target=compute_target,
     runconfig=runconfig,

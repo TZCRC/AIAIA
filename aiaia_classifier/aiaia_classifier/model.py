@@ -35,36 +35,41 @@ FLAGS = flags.FLAGS
 # Override these flags when calling model.py or in the katib yaml files if
 # running experiments via katib
 flags.DEFINE_integer("n_classes", 2, "Number of classes in dataset")
-flags.DEFINE_list("class_names", ["not_object", "object"], "class names in data set")
+flags.DEFINE_list(
+    "class_names", ["not_object", "object"], "class names in data set"
+)
 flags.DEFINE_list("countries", [""], "countries to use for input")
 flags.DEFINE_integer("img_dim", 400, "dimensions of img array")
 flags.DEFINE_integer("num_channels", 3, "number of channels in img array")
 flags.DEFINE_string("x_feature_name", "input_1", "layer name")
 flags.DEFINE_integer("n_map_threads", 4, "threads")
-flags.DEFINE_integer("shuffle_buffer_size", None, "should match size of train dataset")
+flags.DEFINE_integer(
+    "shuffle_buffer_size", None, "should match size of train dataset"
+)
 flags.DEFINE_integer("prefetch_buffer_size", 1, "prefetch buffer size")
 flags.DEFINE_string(
-    "tf_train_data_dir", None, "Path to training data dir. Relative to local_dataset_dir."
+    "tf_train_data_dir",
+    None,
+    "Path to training data dir. Relative to local_dataset_dir.",
 )
 flags.DEFINE_string(
-    "tf_val_data_dir", None, "Path to val data dir. Relative to local_dataset_dir."
+    "tf_val_data_dir",
+    None,
+    "Path to val data dir. Relative to local_dataset_dir.",
+)
 
 flags.DEFINE_string(
-    "model_logs_dir",
-    "model_logs",
-    "Directory to write evaluation, tf records, checkpoints after training",
+    "model_outputs_dir",
+    "model_outputs",
+    "Directory to write evaluation, tf records, checkpoints, and frozen_graph.pb after training",
 )
 
 flags.DEFINE_string(
     "local_dataset_dir", None, "local directory to copy data into."
 )
+
 flags.DEFINE_string(
-    "model_output_dir", "model_output", "Path to save models."
-)
-flags.DEFINE_string(
-    "results_dir",
-    None,
-    "Path to GCS to write results",
+    "results_dir", None, "Path to write results",
 )
 flags.DEFINE_string("model_id", "s", "model id for saving.")
 flags.DEFINE_string(
@@ -75,7 +80,7 @@ flags.DEFINE_string(
 flags.DEFINE_string(
     "tf_test_ckpt_path",
     None,
-    "Use to override training and run prediction on test data.",
+    "Use to override training and run prediction on test data. Relative to local_dataset_dir",
 )
 flags.DEFINE_integer(
     "tf_steps_per_summary", 10, "Training steps per Tensorboard events save."
@@ -84,14 +89,22 @@ flags.DEFINE_integer(
     "tf_steps_per_checkpoint", 100, "Training steps per model checkpoint save."
 )
 flags.DEFINE_integer("tf_batch_size", 16, "Size of one batch for training")
-flags.DEFINE_integer("tf_train_steps", 200, "The number of training steps to perform")
-flags.DEFINE_integer("tf_dense_size_a", 256, "Size of final dense hidden layer")
+flags.DEFINE_integer(
+    "tf_train_steps", 200, "The number of training steps to perform"
+)
+flags.DEFINE_integer(
+    "tf_dense_size_a", 256, "Size of final dense hidden layer"
+)
 flags.DEFINE_float(
-    "tf_dense_dropout_rate_a", 0.3, "Dropout rate of the final dense hidden layer"
+    "tf_dense_dropout_rate_a",
+    0.3,
+    "Dropout rate of the final dense hidden layer",
 )
 flags.DEFINE_integer("tf_dense_size", 128, "Size of final dense hidden layer")
 flags.DEFINE_float(
-    "tf_dense_dropout_rate", 0.35, "Dropout rate of the final dense hidden layer"
+    "tf_dense_dropout_rate",
+    0.35,
+    "Dropout rate of the final dense hidden layer",
 )
 flags.DEFINE_string("tf_dense_activation", "relu", "Activation output layer")
 flags.DEFINE_float("tf_learning_rate", 0.001, "learning rate for training")
@@ -111,7 +124,11 @@ def resnet50_estimator(params, model_dir, run_config):
         weights="imagenet",
         include_top=False,  # Peel off top layer
         pooling="avg",
-        input_shape=[params["img_dim"], params["img_dim"], params["num_channels"]],
+        input_shape=[
+            params["img_dim"],
+            params["img_dim"],
+            params["num_channels"],
+        ],
     )
     # Get final layer of base Resnet50 model
     x = base_model.output
@@ -135,7 +152,9 @@ def resnet50_estimator(params, model_dir, run_config):
 
     # Get (potentially decaying) learning rate
     optimizer = create_optimizer(params["optimizer"], params["learning_rate"])
-    model.compile(optimizer=optimizer, loss=params["loss"], metrics=params["metrics"])
+    model.compile(
+        optimizer=optimizer, loss=params["loss"], metrics=params["metrics"]
+    )
 
     return model_to_estimator(
         keras_model=model,
@@ -160,12 +179,18 @@ def resnet_serving_input_receiver_fn():
 
     def decode_and_resize(image_str_tensor):
         """Decodes image string, resizes it and returns a uint8 tensor."""
-        image = tf.image.decode_image(image_str_tensor, channels=3, dtype=tf.uint8)
-        image = tf.reshape(image, [FLAGS.img_dim, FLAGS.img_dim, FLAGS.num_channels])
+        image = tf.image.decode_image(
+            image_str_tensor, channels=3, dtype=tf.uint8
+        )
+        image = tf.reshape(
+            image, [FLAGS.img_dim, FLAGS.img_dim, FLAGS.num_channels]
+        )
         return image
 
     # Run processing for batch prediction.
-    input_ph = tf.compat.v1.placeholder(tf.string, shape=[None], name="image_binary")
+    input_ph = tf.compat.v1.placeholder(
+        tf.string, shape=[None], name="image_binary"
+    )
 
     with tf.device("/cpu:0"):
         images_tensor = tf.map_fn(
@@ -219,19 +244,6 @@ def ifilepaths(dirpath: str, *, recursive=True) -> Iterator[str]:
     return filter(os.path.isfile, ipaths)
 
 
-def upload_files(bucket_name: str, blob_name_base: str, src_dir: str) -> None:
-    """Upload all files (recursively) in a directory to a GCS bucket.
-
-    All files within the directory are uploaded relative to the given base blob name,
-    such that their paths relative to the given directory are made relative to the base
-    blob name.  For example, a file at <src_dir>/relpath/to/file is uploaded to a blob
-    named <blob_name_base>/relpath/to/file.
-    """
-    for filepath in ifilepaths(src_dir):
-        blob_name = rebase(src_dir, blob_name_base, filepath)
-        upload_file_to_gcs(bucket_name, blob_name, filepath)
-
-
 def main(_):
     """
     Function to run TF Estimator
@@ -240,9 +252,25 @@ def main(_):
     if running locally. Otherwise, AzureML sets the TF_CONFIG automatically: 
     https://docs.microsoft.com/en-us/azure/machine-learning/how-to-train-tensorflow
     """
-
+    #####
+    # Setting up absolute paths
+    #####
+    model_logs_dir = os.path.join(
+        FLAGS.local_dataset_dir, FLAGS.model_logs_dir
+    )
+    results_dir = os.path.join(FLAGS.local_dataset_dir, FLAGS.results_dir)
+    tf_train_data_dir = os.path.join(
+        FLAGS.local_dataset_dir, FLAGS.tf_train_data_dir
+    )
+    tf_val_data_dir = os.path.join(
+        FLAGS.local_dataset_dir, FLAGS.tf_val_data_dir
+    )
+    if FLAGS.tf_test_ckpt_path:
+        tf_test_ckpt_path = os.path.join(
+            FLAGS.local_dataset_dir, FLAGS.tf_test_ckpt_path
+        )
     run_config = tf.estimator.RunConfig(
-        model_dir=os.path.join(FLAGS.tf_model_dir, FLAGS.model_id),
+        model_dir=os.path.join(model_logs_dir, FLAGS.model_id),
         save_summary_steps=FLAGS.tf_steps_per_summary,
         save_checkpoints_steps=FLAGS.tf_steps_per_checkpoint,
         log_step_count_steps=FLAGS.tf_steps_per_summary,
@@ -271,7 +299,9 @@ def main(_):
 
     def precision_m(labels, predictions):
         precision_metric = tf.keras.metrics.Precision(name="precision_m")
-        precision_metric.update_state(y_true=labels, y_pred=predictions["output"])
+        precision_metric.update_state(
+            y_true=labels, y_pred=predictions["output"]
+        )
         return {"precision_m": precision_metric}
 
     def recall_m(labels, predictions):
@@ -286,7 +316,7 @@ def main(_):
         fbeta_metric.update_state(y_true=labels, y_pred=predictions["output"])
         return {"fbeta_m": fbeta_metric}
 
-    classifier = resnet50_estimator(model_params, FLAGS.tf_model_dir, run_config)
+    classifier = resnet50_estimator(model_params, model_logs_dir, run_config)
     classifier = tf.estimator.add_metrics(classifier, fbeta_m)
     classifier = tf.estimator.add_metrics(classifier, precision_m)
     classifier = tf.estimator.add_metrics(classifier, recall_m)
@@ -298,10 +328,10 @@ def main(_):
     if FLAGS.tf_test_ckpt_path:
         print(
             "Overriding training and running test set prediction with model ckpt:",
-            FLAGS.tf_test_ckpt_path,
+            tf_test_ckpt_path,
         )
 
-        os.makedirs(FLAGS.tf_test_results_dir, exist_ok=True)
+        os.makedirs(results_dir, exist_ok=True)
 
         logging.info("Beginning test for model")
 
@@ -312,7 +342,9 @@ def main(_):
             FLAGS.countries,
         )
         logging.info(test_file_patterns)
-        map_func = partial(parse_fn, n_chan=3, n_classes=model_params["n_classes"])
+        map_func = partial(
+            parse_fn, n_chan=3, n_classes=model_params["n_classes"]
+        )
 
         dataset_test = get_dataset_feeder(
             file_patterns=test_file_patterns,
@@ -341,7 +373,7 @@ def main(_):
         raw_preds = classifier.predict(
             dataset_test_fn,
             yield_single_examples=True,
-            checkpoint_path=FLAGS.tf_test_ckpt_path,
+            checkpoint_path=tf_test_ckpt_path,
         )
 
         p_list = [raw_pred["output"] for raw_pred in raw_preds]
@@ -354,7 +386,7 @@ def main(_):
         }
 
         df_pred = pd.DataFrame.from_dict(output_d)
-        df_pred.to_csv(os.path.join(FLAGS.tf_test_results_dir, "preds.csv"))
+        df_pred.to_csv(os.path.join(results_dir, "preds.csv"))
 
         print("preds csv written")
 
@@ -382,7 +414,7 @@ def main(_):
 
         df = pd.DataFrame.from_dict(d)
         df["POI"] = model_params["class_names"]
-        df.to_csv(os.path.join(FLAGS.tf_test_results_dir, "test_stats.csv"))
+        df.to_csv(os.path.join(results_dir, "test_stats.csv"))
 
         print("test stats written")
         return d
@@ -396,9 +428,7 @@ def main(_):
     # Create training dataset function
 
     train_file_patterns = country_file_patterns(
-        FLAGS.tf_train_data_dir,
-        "train*{country}*.tfrecords",
-        FLAGS.countries,
+        tf_train_data_dir, "train*{country}*.tfrecords", FLAGS.countries,
     )
 
     map_func = partial(
@@ -420,9 +450,7 @@ def main(_):
 
     # Create validation dataset function
     val_file_patterns = country_file_patterns(
-        FLAGS.tf_val_data_dir,
-        "val*{country}*.tfrecords",
-        FLAGS.countries,
+        tf_val_data_dir, "val*{country}*.tfrecords", FLAGS.countries,
     )
 
     map_func = partial(
@@ -478,6 +506,7 @@ def main(_):
     logging.info("train and evaluate")
     tf.estimator.train_and_evaluate(classifier, train_spec, eval_spec)
     logging.info("training done.")
+
 
 if __name__ == "__main__":
     app.run(main)
