@@ -46,8 +46,8 @@
       2. `conda activate azureml`
       3. `pip install -r requirements_aml.txt` on your local machine to get the libraries needed to create a workspace and run experiments. Activate the environment when running python files using azureml.
 
-6. After activating and setting the environment variables, if the folder paths on the blob container are correct, you can create a workspace with `python create workspace.py`. You won't need to create this if it already exists.
-7. Then, to run an experiment: `python azureml_train.py`. You can then navigate to The Azure Machine Learning Studio to inspect your experiment run. Inputs will be loaded from the separate storage account's blob container specified in the shell variables. Model outputs will be saved to this same storage account. 
+6. After activating and setting the environment variables, if the folder paths on the blob container are correct, you can create a workspace with `python create workspace_detector.py`. You won't need to create this if it already exists.
+7. Then, to run an experiment: `python azureml_train_detector.py`. You can then navigate to The Azure Machine Learning Studio to inspect your experiment run. Inputs will be loaded from the separate storage account's blob container specified in the shell variables. Model outputs will be saved to this same storage account. 
 
 
 This workflow is based on these and other AzureML tutorials and docs: 

@@ -53,6 +53,10 @@ except ComputeTargetException:
 # Use get_status() to get a detailed status for the current AmlCompute.
 print(compute_target.get_status().serialize())
 
+#### we wrap paths in azureml objects to handle transferring data to and from the cluster with
+#### Dataset.as_download() and OutputFileDatasetConfig.as_upload()
+# https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.data.output_dataset_config.outputfiledatasetconfig?view=azure-ml-py
+
 # Get a dataset by name
 root_data_ds = Dataset.get_by_name(
     workspace=ws, name="root_data_for_azureml_detector"
@@ -75,7 +79,7 @@ model_output_cfg = OutputFileDatasetConfig(
         "azureml_outputs_detector/model_output",
     ),
 ).as_upload(overwrite=True)
-
+####
 
 train_export_step = PythonScriptStep(
     name="Run training and export model",
@@ -89,7 +93,7 @@ train_export_step = PythonScriptStep(
         "--pipeline_config_path",
         "model_configs_tf1/configs/rcnn_resnet101_serengeti_wildlife.config",
         "--num_train_steps",
-        "10",
+        "10",  # used to be 50000
         "--sample_1_of_n_eval_examples",
         "1",
         "--input_type",
@@ -113,7 +117,7 @@ pl.validate()
 
 exp = Experiment(ws, "test_train_rcnn_resnet101_serengeti_wildlife")
 
-run = exp.submit(pl, regenerate_outputs=False)
+run = exp.submit(pl)
 run.wait_for_completion(show_output=True)
 # tb = Tensorboard([run])
 

@@ -86,12 +86,12 @@ train_export_step = PythonScriptStep(
         "--tf_dense_dropout_rate=0.34",
         "--tf_learning_rate=0.00027",
         "--tf_optimizer=adam",
+        "--local_dataset_dir",
+        dataset_input,
         "--tf_train_data_dir=training_data_aiaia_p400/classification_training_tfrecords/",
         "--tf_val_data_dir=training_data_aiaia_p400/classification_training_tfrecords/",
         "--model_outputs_dir",
         model_output_cfg,
-        "--local_dataset_dir",
-        dataset_input,
         "--tf_steps_per_checkpoint=60",  # was 100
         "--tf_steps_per_summary=60",  # was 500
         "--tf_train_steps=60",  # was 6000
@@ -99,7 +99,7 @@ train_export_step = PythonScriptStep(
         "--results_dir",
         model_results_cfg,
         "--model_upload_id=v1",
-        "--model_id=abc",  # put the unique tag for the experiment run here.
+        "--model_id=abc",  # put the unique tag for the experiment run here. saves model results and outputs in this folder
     ],
     compute_target=compute_target,
     runconfig=runconfig,
