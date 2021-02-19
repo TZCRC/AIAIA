@@ -119,10 +119,10 @@ exp = Experiment(ws, "test_train_rcnn_resnet101_serengeti_wildlife")
 
 run = exp.submit(pl)
 run.wait_for_completion(show_output=True)
-# tb = Tensorboard([run])
+tb = Tensorboard([run])
 
-# # If successful, start() returns a string with the URI of the instance.
-# tb.start()
+# If successful, start() returns a string with the URI of the instance.
+tb.start()
 
-# # Stops after experiment reaches "Completed" or "Failed"
-# tb.stop()
+# Stops after experiment reaches "Completed" or "Failed"
+tb.stop()

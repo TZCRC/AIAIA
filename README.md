@@ -41,7 +41,7 @@ The new system is for cameras on the wing struts which take constant images alon
 ## Training Data Generation with the aiaia_tf container
 The aiaia_tf container has multiple uses: generating training data, running evaluation on model outputs, and serving as an interactive jupyter notebook server or testing server with pytest.
 
--  Build and access the container
+-  Build and access the container locally. This will take a long time to build depending on your internet connection. You can change the `docker-compose.yaml` file to have it build to support gpu, which will make evaluation faster.
 
 ```sh
 docker-compose build
@@ -63,7 +63,7 @@ python3 add_class_id.py \
 ```
 
 Files were stored at: `s3://aisurvey/training_data202008/P1000/*_train_sliced_image_nbboxes_class_id.csv`
-
+They have been moved to the aiaiatrain container on Azure.
 
 - Creating Tfrecords for object detection
 
@@ -92,7 +92,7 @@ python3 write_training_pbtxt.py \
 ```
 
 outputs at: `s3://aisurvey/training_data202008/P1000/pbtxt`
-
+They are also stored in the aiaiatrain container on Azure.
 
 - Creating Tfrecords for classification
 
@@ -117,123 +117,10 @@ At the end of the project, we present two AI-assisted systems: 1) an image class
 
 <img width="1131" alt="AIAIA-workflow" src="https://user-images.githubusercontent.com/14057932/106538113-b6064380-64c9-11eb-86f4-602bc8ab41dc.png">
 
-### AIAIA Classifier
-
-#### Building the training image
-
-To build the training image, run the following command, replacing `VERSION` with an
-appropriate value (e.g., `v2`):
-
-```bash
-cd aiaia_classifier/
-export VERSION=v1
-export PROJECT=bp-padang
-docker build . -t gcr.io/${PROJECT}/aiaia-classifier:${VERSION}-xception-binary
-```
-
-* Uses a google deep learning base with tensorflow 2 and the correct CUDA
-  version (10.0) pre-installed -- note that this container does not support tensorflow
-  addons package.
-* Corresponds to Dockerfile in repo.
-
-If it's the first time you open the PROJECT before you push the image to GCR, it will ask you to 'Enable' the GCR API on the Cloud Console, e.g. 'https://console.cloud.google.com/apis/api/containerregistry.googleapis.com/overview?project=project-connect-289520'
-And enable other [API resources](https://www.kubeflow.org/docs/gke/deploy/project-setup/), e.g., running:
-
-```bash
-
-gcloud services enable \                         
-  compute.googleapis.com \
-  container.googleapis.com \
-  iam.googleapis.com \
-  servicemanagement.googleapis.com \
-  cloudresourcemanager.googleapis.com \
-  ml.googleapis.com
-```
-
-Now, you can push the image to GCR using the following command:
-
-```bash
-docker push gcr.io/${PROJECT}/aiaia-classifier:${VERSION}-xception-binary
-```
-
-Make sure that the docker info in the `katib` file matches the most up-to date
-version of the dockerfile.
-
-#### Setup Kubeflow on GCP cluster
-
-Assuming you have correctly specified values in your `.env` file as described
-above, as well as installed the prerequisite tools (also described above), you
-should be able to deploy a new cluster with the following command. (**NOTE:**
-this will automatically detect and install the correct versions of `kubectl`
-and `kfctl` for you, so there should be no need for you to do so manually.)
-
-```bash
-# TYPE is either 'standard' or 'highmem'
-# Run ./deploy without args for details
-./deploy --node-pool standard
-```
-
-**NOTE:** This will take about 15 minutes to complete!
-
-#### Verify Resources
-
-Once deployment is complete, run the following command to see all resources for
-your cluster:
-
-```
-kubectl -n kubeflow get all
-```
-
-#### Single Experiment Run using TF-job
-
-If you have already established the optimal combinations of hyper-parameters you
-can create a tf-jobs yaml file. See yaml file in tf_jobs for example.
-
-#### Start Experiment
-Before you start the experiment, the tf_job yaml file will need to be updated, particularly the `tf_train_data_dir` and `tf_val_data_dir`.
-
-```
-kubectl create -f <path to tf job yaml file>
-```
-
-Check if the experiment is deployed properly, by running the following for logging:
-
-```bash
-stern -n kubeflow --since 10m --container tensorflow ".*"
-
-```
-#### Deploying hyperparameter optimization experiments
-
-```
-kubectl create -f <path to yaml file>
-
-# see trials status
-kubectl describe experiment <experiment_name> -n kubeflow
-
-# see hyper-parameter combinations katib has generated
-kubectl -n kubeflow describe suggestions
-
-# useful to start looking at after trials have completed
-kubectl -n kubeflow port-forward svc/katib-ui 8080:80
-# then go to http://localhost:8080/katib/#/katib/hp_monitor for visualizations
-
-# Delete running experiments like:
-kubectl delete -f <path to yaml file>
-```
-
-#### Clean up
-
-The following information will be printed out when the Kubeflow is successfully deployed.
-You will need to add `--no-dry-run` to the following bash script to completely delete the cluster and resource once the ML training is finished.
-
-```bash
-# Delete cluster/resources once finished
-./clean ${KF_DIR}
-```
 ### Model evaluation - Classifier
 
 #### Running testing locally
-Download TFRecords down from GCP either change the flags in aiaia_classifier/eval.py code.
+Download TFRecords down from Azure, the `gcpprocessedtraining` container, either change the flags in aiaia_classifier/eval.py code.
 Download the model checkpoint files from the best performing training step locally.
 You can run the following command under `aiaia_classifier` directory:
 

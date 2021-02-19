@@ -51,7 +51,7 @@ ENV TF_CPP_MIN_LOG_LEVEL 3
 # Test Object Detection API Installation
 RUN python object_detection/builders/model_builder_tf2_test.py
 
-COPY requirements.txt .
+COPY requirements-data-eval.txt .
 RUN pip install --upgrade --ignore-installed --no-cache-dir -r requirements-data-eval.txt
 
 WORKDIR /mnt/data
