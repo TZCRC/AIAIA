@@ -16,14 +16,13 @@ ws = Workspace.get(
     resource_group="aiaia-workspace-detector",
 )
 
-
 env = Environment("AIAIA Training")
 env.docker.enabled = True
 # Set the container registry information.
 env.docker.base_image_registry.address = "aiaiatrain.azurecr.io"
 env.docker.base_image_registry.username = "aiaiatrain"
 
-env.docker.base_image = "aiaia-tf1.15-frozen_graph:latest"
+env.docker.base_image = "aiaia:v1-tf1.15-frozen-graph-gpu:latest"
 env.python.user_managed_dependencies = True
 
 # Run az acr credential show --name aiaiatrain to get credentials for the ACR.

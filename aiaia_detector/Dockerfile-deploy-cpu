@@ -20,7 +20,7 @@ RUN apt-get install -y \
     python3-dev
 
 # Install remaining python dependencies
-COPY requirements.txt .
+COPY requirements-deploy.txt .
 RUN pip install --upgrade -r requirements-deploy.txt
 
 
@@ -51,7 +51,7 @@ RUN git clone https://github.com/cocodataset/cocoapi.git && \
     make install
 
 # Training School Detector
-COPY aiaia_detector/ /tensorflow/school_detector/
+COPY aiaia_detector/ /tensorflow/aiaia_detector/
 RUN chmod +x /tensorflow/aiaia_detector/model_main.py
 
 WORKDIR /mnt/data

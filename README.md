@@ -118,11 +118,12 @@ At the end of the project, we present two AI-assisted systems: 1) an image class
 <img width="1131" alt="AIAIA-workflow" src="https://user-images.githubusercontent.com/14057932/106538113-b6064380-64c9-11eb-86f4-602bc8ab41dc.png">
 
 ### Model evaluation - Classifier
+All of the following paths are relative to the  `gcpprocessedtraining` container and can be downloaded locally, or mounted or downloaded to a VM. See https://docs.microsoft.com/en-us/azure/storage/blobs/storage-how-to-mount-container-linux
 
 #### Running testing locally
-Download TFRecords down from Azure, the `gcpprocessedtraining` container, either change the flags in aiaia_classifier/eval.py code.
-Download the model checkpoint files from the best performing training step locally.
-You can run the following command under `aiaia_classifier` directory:
+Download TFRecords down from the folder `root_data_for_azureml_classifier/training_data_aiaia_p400/ classification_training_tfrecords` and edit the flags in the aiaia_classifier/eval.py code if needed based on your paths and where you downloaded the data.
+Download the model checkpoint files from the best performing training step locally, these are in `classification_model_outputs/abc/`.
+Run the `aiaia_tf` docker container (see the following section on evaluating the AIAIA Detectors) in interactive mode with your local folder mounted. Within the container, run the following command:
 
 ```bash
 python3 aiaia_classifier/eval.py \
@@ -131,95 +132,48 @@ python3 aiaia_classifier/eval.py \
        --tf_test_ckpt_path=dir_path_to_model_checkpoints/model.ckpt-6000 \
        --tf_test_results_dir=local_dir4_model_eval
 ```
-*Note*: currently, model parameters under `eval.py` is hard coded for this aiaia classifier model.
-
-#### Reading files from GCS for model testing
-
-You can also point the model check point and test dataset that hosted on GCS. To do so, you will need to install packages:
-- `pip3 install google-cloud-bigquery tenacity`, and
-- log in to your GCP with `gcloud` and application authentication shows as follows:
-
-```bash
-# log in to the GCP so we can access to the files on GCS
-
-gcloud init
-
-gcloud auth application-default login
-
-python3 aiaia_classifier/eval.py \
-        --tf_test_data_dir='gs://dir_path_to_test_tfrecords/' \
-        --countries={country_name} \
-        --tf_test_ckpt_path='gs://dir_path_to_model_checkpoints/model_outputs/v1/model.ckpt-6000' \
-        --tf_test_results_dir=local_dir4_model_eval
-```
 
 The above command will output three files:
 - `preds.csv`;
 - `test_stats.csv`; and
-- `dist_fpr_tpr_{countries}.png` and `roc_{countries}.png` that shows model true and false positive rate and roc curve.
-
+- `dist_fpr_tpr_{countries}.png` and `roc_{countries}.png` that shows model true and false positive rate and roc curve. you can specify the `country` argument as an arbitrary identifier for your specific region.
+- 
+*Note*: currently, model parameters under `eval.py` are hard coded for this particular aiaia classifier model.
 
 ### AIAIA Detectors
-
+All of the following paths are relative to the  `gcpprocessedtraining` container and can be downloaded locally, or mounted or downloaded to a VM. See https://docs.microsoft.com/en-us/azure/storage/blobs/storage-how-to-mount-container-linux
 #### Building the training image
+The training images have already been built and uploaded to an azure container registry named `aiaiatrain`. 
+You can pull it to a VM or local machine with:
+
+```bash
+cd aiaia-detector
+az acr login --name aiaiatrain # login to the azure container registry
+docker run -u 0 --rm -v ./:/mnt/data -it aiaiatrain.azurecr.io/aiaia-tf1.15-frozen_graph:latest bash
+```
+
+If you need to build them and upload them again to ACR do the following.
 
 To build the training image, run the following command, replacing `VERSION` with an
 appropriate value (e.g., `v2`):
 
 ```bash
 cd aiaia_detector/
-export VERSION=v1
-export PROJECT=bp-padang
-docker build . -f Dockerfile-gpu -t gcr.io/${PROJECT}/aiaia:${VERSION}-tf1.15-gpu
-docker build . -f Dockerfile-cpu -t gcr.io/${PROJECT}/aiaia:${VERSION}-tf1.15-cpu
-
+bash build_azure_images.sh
+docker push
 ```
 
-#### Deploy TF jobs
-
-If you have already established the optimal combinations of hyper-parameters you can create a tf-jobs yaml file. See yaml file in tf_jobs for example.
-
-```bash
-kubectl create -f <path to tf job yaml file>
-```
-
-Check if the experiment is deployed properly, by running the following for logging:
-
-```bash
-stern -n kubeflow --since 10m --container tensorflow ".*"
-```
-
-#### Delete TF experiment
-To terminate the model experiment, run:
-
-```bash
-kubectl delete -f <path to tf job yaml file>
-```
 
 #### Watching model training with Tensorboard
 
-After an object detection model is trained and model checkpoints saved in GCS. You can go through these few steps to visualize tensorboard:
+After an object detection model is trained and model checkpoints. You can go through these few steps to visualize tensorboard:
+
+Download the outputs in `gcsprocessedtraining/azureml_outputs_detector/model_logs`
 
 ##### Visualize tensorboard locally
 
 ```bash
-gcloud init # to sign into your project with your email
-gcloud auth application-default login
-
-tensorboard --logdir='gs://aiaia_od/model_outputs_tf1/rcnn_resnet101_serengeti_wildlife_v3/'
-```
-
-##### Visualize tensorboard with Tensorboard Dev
-
-```bash
-gcloud init # to sign into your project with your email
-gcloud auth application-default login
-
-pip3 install -U tensorboard
-
-## This will upload model files to tensorboard dev
-tensorboard dev upload --logdir gs://aiaia_od/model_outputs_tf1/rcnn_resnet101_serengeti_wildlife_v3/
-
+tensorboard --logdir='path/to/model_logs'
 ```
 
 #### Evaluation - Detectors
@@ -280,37 +234,30 @@ To add another test, edit `tests/evaluation.py`
 
 ## Model inference
 
-These scripts aim to run model inference with `frozen_inference_graph.pb`. It exporeted as "input_type" `image_tensor`, for more information on how to export a trained model, please see [this script](https://github.com/developmentseed/ai4earth-wildlife-conservation/blob/master/aiaia_detector_tf1/aiaia_detector/exporter.py). This is an alternative way of running model inference, you can run model inference with TFServing images we provided [here](../README.md). We faced a latency running with TFserving images.
+These scripts run model inference with `frozen_inference_graph.pb`. This is an alternative way of running model inference, you can run model inference with TFServing images we provided [here](../README.md). We faced a latency running with TFserving images, so we recommend using the frozen_graph.pb files for the object detector and classifier inference.
 
 
-### Running the scripts in local docker container
+### Running the inference script in local docker container
 
-- Running the container and login in GCP
-
-From: https://github.com/developmentseed/ai4earth-wildlife-conservation/blob/master/aiaia_detector_tf1/README.md#run-with-kubeflow
 
 ```bash
-export VERSION=v1
-export PROJECT=bp-padang
-cd inference/frozen_graph/
-docker run -u 0 --rm -v ${PWD}://mnt/data -it gcr.io/${PROJECT}/aiaia:${VERSION}-tf1.15-cpu bash
-
-
+cd aiaia_detector
+docker run -u 0 --rm -v ./:/mnt/data -it aiaiatrain.azurecr.io/aiaia-tf1.15-frozen_graph:latest bash
 ```
 
-- Getting required files
+- Getting required files, download these to the folder mounted to the container.
 
 ```bash
 # create folder
 mkdir -p models/wildlife
 mkdir -p data/chips/
 
-# Sync files from bucket files to local
-gsutil cp gs://aiaia_od/export_outputs_tf1/ryan_sprint_rcnn_resnet101_serengeti_wildlife_v3_tfs/frozen_inference_graph.pb models/wildlife/
-gsutil rsync gs://aiaia_od/chips data/chips/
-
+# Download the frozen graph model from gcsprocessedtraining
+# for example: 
+# export_outputs_tf1/ryan_sprint_rcnn_resnet101_serengeti_wildlife_v3_tfs/frozen_inference_graph.pb
+# download the chips from gcsprocessedtraining, located in the chips folder
 # copy pbtxt file for wildlife
-gsutil cp gs://aiaia_od/model_configs/labels/wildlife.pbtxt data/
+# /model_configs_tf1/labels/wildlife.pbtxt on gcpprocessedtraining
 ```
 
 - Executing prediction
