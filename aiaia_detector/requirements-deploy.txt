@@ -10,8 +10,8 @@ setuptools>=41.0.0
 tf-slim==1.1.0
 protobuf==3.7
 pycocotools==2.0.2
-# TODO confirm these uneeded, unused in dockerfile-deploy-gpu
-# requests==2.25.0
-# tensorflow_serving-api==2.3.0
-# click==7.1.2
-# pandas==1.1.5
+# for frozen graph inference
+numpyencoder==0.3.0
+click==7.1.2
+joblib==1.0.1
+tqdm==4.57.0

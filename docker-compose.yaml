@@ -1,7 +1,7 @@
 version: '3'
 services:
   aiaia_tf:
-    image: developmentseed/aiaia_tf:v1
+    image: aiaiatrain.azurecr.io/aiaia_tfrecord_eval_cpu # change to cpu or gpu depending on what you are using for evaluation
     build:
       context: .
       dockerfile: Dockerfile-data-eval-cpu # change to cpu or gpu depending on what you are using for evaluation

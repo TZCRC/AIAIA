@@ -55,4 +55,4 @@ COPY requirements-data-eval.txt .
 RUN pip install --upgrade --ignore-installed --no-cache-dir -r requirements-data-eval.txt
 
 WORKDIR /mnt/data
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--notebook-dir=/ai4earth-wildlife-conservation/" ]
+CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--notebook-dir=/AIAIA/" ]
